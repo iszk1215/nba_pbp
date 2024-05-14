@@ -1,4 +1,5 @@
-import _playbypay from "./0042300232.json" with {type: "json"}
+// import _playbypay from "./0042300232.json" with {type: "json"}
+import _playbypay from "./0042300224.json" with {type: "json"}
 
 const POINTS_BY_ACTION = {
   "freethrow": 1,
@@ -6,16 +7,13 @@ const POINTS_BY_ACTION = {
   "3pt": 3,
 };
 const SECONDS_IN_REGULAR_PERIOD = 12 * 60;
-
 const STROKE_STYLE_HOME = "rgb(255, 198, 39)";
 const STROKE_STYLE_AWAY = "rgb(12, 35, 64)";
 const STROKE_STYLE_GRID = "rgb(200, 200, 200)";
 const SCORE_RADIUS = 5;
 
 class Circle {
-  constructor(x, y, px, py, r, fillStyle, strokeStyle, props) {
-    this.lx = x; // logical
-    this.ly = y;
+  constructor(px, py, r, fillStyle, strokeStyle, props) {
     this.px = px;
     this.py = py;
     this.r = r; // phisical
@@ -119,8 +117,7 @@ function addScoreSeries(chart, playbyplay, teamTricode, style) {
       const y = chart.getY(score);
       const fillStyle = made ? style : "rgb(255, 255, 255)";
 
-      series.push(new Circle(elapsed, score, x, y, SCORE_RADIUS, fillStyle, style, action));
-
+      series.push(new Circle(x, y, SCORE_RADIUS, fillStyle, style, action));
     }
   });
 
@@ -220,9 +217,9 @@ function draw(ctx, chart, playbyplay, guide) {
     const [seconds, score] = chart.toLogical(x, y);
     ctx.strokeStyle = STROKE_STYLE_GRID;
     chart.drawLineP(ctx, x, chart.y0, x, chart.y0 + chart.height);
-    chart.drawLineP(ctx, chart.x0, y, chart.x0 + chart.width, y);
+    // chart.drawLineP(ctx, chart.x0, y, chart.x0 + chart.width, y);
 
-    ctx.fillText(`${score}`, chart.getX(0) - 4, y);
+    // ctx.fillText(`${score}`, chart.getX(0) - 4, y);
     ctx.textAlign = "center";
     ctx.textBaseline = "top";
     const q = parseInt(seconds / SECONDS_IN_REGULAR_PERIOD);
@@ -231,6 +228,20 @@ function draw(ctx, chart, playbyplay, guide) {
     const min = String(parseInt(clock_in_second / 60)).padStart(2, "0");
     const sec = String(parseInt(clock_in_second - 60 * min)).padStart(2, "0");
     ctx.fillText(`${min}:${sec}`, x, chart.getY(0) + 4);
+
+    // score difference
+    const obj0 = chart.series[0].findLast(obj => obj.px <= x);
+    const obj1 = chart.series[1].findLast(obj => obj.px <= x);
+    const latest = obj0.px > obj1.px ? obj0 : obj1;
+    const diff = Math.abs(latest.props["scoreHome"] - latest.props["scoreAway"])
+
+    ctx.beginPath();
+    ctx.lineWidth = 4;
+    chart.drawLineP(ctx, x, obj0.py, x, obj1.py, 4);
+    ctx.stroke()
+    ctx.textAlign = "right";
+    ctx.textBaseline = "middle";
+    ctx.fillText(`${diff}`, x - 4, (obj0.py + obj1.py) / 2);
   }
 
   drawPoints(chart, ctx, chart.series[0], STROKE_STYLE_AWAY)
@@ -255,8 +266,8 @@ function init(playbyplay) {
 
   const chart = new Chart(chart_x0, chart_y0, chart_width, chart_height, maxX, maxY)
 
-  const teamTricodeAway = "MIN";
-  const teamTricodeHome = "DEN";
+  const teamTricodeAway = "OKC";
+  const teamTricodeHome = "DAL";
 
   addScoreSeries(chart, playbyplay, teamTricodeAway, STROKE_STYLE_AWAY);
   addScoreSeries(chart, playbyplay, teamTricodeHome, STROKE_STYLE_HOME);
@@ -313,7 +324,6 @@ function init(playbyplay) {
             ctx.drawImage(img, imgObj.px - imgW - 6, imgObj.py - imgH - 6, imgW, imgH);
           });
           const url = `https://cdn.nba.com/headshots/nba/latest/260x190/${imgObj.props["personId"]}.png`;
-          console.log(url);
           img.src = url;
         }
       }
