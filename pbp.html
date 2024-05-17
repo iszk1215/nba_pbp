@@ -1,7 +1,19 @@
 <!DOCTYPE html>
 <html>
+  <head>
+    <script src="https://ajax.googleapis.com/ajax/libs/webfont/1.6.26/webfont.js"></script>
+  </head>
   <body>
-    <canvas id="pbp" style="border: 1px solid black;"></canvas>
+    <h1>NBA Play-By-Play</h1>
+    <div style="position: relative;">
+      <canvas id="pbp" style="border: 1px solid black; position: absolute"></canvas>
+      <div style="position: absolute; top: 60px; left: 60px; font-family: Roboto; border: solid 1px; padding: 5px;">
+        2 <b>DEN 112</b><br>
+        3 <b>MIN 91</b><br>
+        <small>Wed, May 15</small></br>
+        <small>Game 6: DEN LEADS 3-2</small>
+      </div>
+    </div>
   </body>
   <script src="pbp.js" type="module"></script>
 </html>

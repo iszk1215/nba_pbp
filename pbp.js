@@ -1,5 +1,6 @@
 // import _playbypay from "./0042300232.json" with {type: "json"}
-import _playbypay from "./0042300224.json" with {type: "json"}
+// import _playbypay from "./0042300224.json" with {type: "json"}
+import _playbypay from "./0042300235.json" with {type: "json"}
 
 const POINTS_BY_ACTION = {
   "freethrow": 1,
@@ -11,6 +12,7 @@ const STROKE_STYLE_HOME = "rgb(255, 198, 39)";
 const STROKE_STYLE_AWAY = "rgb(12, 35, 64)";
 const STROKE_STYLE_GRID = "rgb(200, 200, 200)";
 const SCORE_RADIUS = 5;
+const FONT_FAMILY = "Roboto";
 
 class Circle {
   constructor(px, py, r, fillStyle, strokeStyle, props) {
@@ -170,6 +172,7 @@ function getMaxScore(playbyplay) {
 }
 
 function draw(ctx, chart, playbyplay, guide) {
+  console.log("draw");
   const ytick = 20;
   const xtick = chart.maxX / 4;
 
@@ -185,7 +188,7 @@ function draw(ctx, chart, playbyplay, guide) {
 
   // axis label
   {
-    ctx.font = "14px Roboto,arial,sans";
+    ctx.font = `14px ${FONT_FAMILY},arial,sans`;
     ctx.fillStyle = "rgb(100, 100, 100)";
     ctx.textAlign = "center";
     ctx.textBaseline = "top";
@@ -246,6 +249,7 @@ function draw(ctx, chart, playbyplay, guide) {
 
   drawPoints(chart, ctx, chart.series[0], STROKE_STYLE_AWAY)
   drawPoints(chart, ctx, chart.series[1], STROKE_STYLE_HOME)
+  console.log("draw: done");
 }
 
 function init(playbyplay) {
@@ -266,8 +270,8 @@ function init(playbyplay) {
 
   const chart = new Chart(chart_x0, chart_y0, chart_width, chart_height, maxX, maxY)
 
-  const teamTricodeAway = "OKC";
-  const teamTricodeHome = "DAL";
+  const teamTricodeAway = "MIN";
+  const teamTricodeHome = "DEN";
 
   addScoreSeries(chart, playbyplay, teamTricodeAway, STROKE_STYLE_AWAY);
   addScoreSeries(chart, playbyplay, teamTricodeHome, STROKE_STYLE_HOME);
@@ -279,6 +283,7 @@ function init(playbyplay) {
     const imageLoaded = {};
 
     canvas.addEventListener("mousemove", (e) => {
+      console.log("mousemove")
       const [x, y] = [e.offsetX, e.offsetY];
       // console.log(x, y);
       let guide = null;
@@ -327,9 +332,20 @@ function init(playbyplay) {
           img.src = url;
         }
       }
+      console.log("mousemove done")
     });
 
-    draw(ctx, chart, playbyplay);
+    console.log(WebFont);
+    WebFont.load({
+      google: {
+        families: [FONT_FAMILY],
+      },
+      active: function() {
+        console.log("active");
+        draw(ctx, chart, playbyplay);
+        console.log("done");
+      },
+    });
   }
 }
 
