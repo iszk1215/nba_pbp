@@ -1,6 +1,7 @@
 // import _playbypay from "./0042300232.json" with {type: "json"}
 // import _playbypay from "./0042300224.json" with {type: "json"}
-import _playbypay from "./0042300235.json" with {type: "json"}
+import _playbypay from "./0042300237_playbyplay.json" with {type: "json"}
+import _boxscore from "./0042300237_boxscore.json" with {type: "json"}
 
 const POINTS_BY_ACTION = {
   "freethrow": 1,
@@ -105,13 +106,14 @@ function addScoreSeries(chart, playbyplay, teamTricode, style) {
 
   const actionsWithShotResults = actions.filter(a => a["shotResult"] && a["teamTricode"] === teamTricode)
 
+
   const series = []
 
   let score = 0;
   actionsWithShotResults.forEach(action => {
     if (action["shotResult"] && action["teamTricode"] === teamTricode) {
       const made = action["shotResult"] === "Made";
-      if (action["shotResult"] == "Made") {
+      if (action["shotResult"] === "Made") {
         score += POINTS_BY_ACTION[action["actionType"]];
       }
       const elapsed = getElapsed(action);
@@ -172,7 +174,7 @@ function getMaxScore(playbyplay) {
 }
 
 function draw(ctx, chart, playbyplay, guide) {
-  console.log("draw");
+  // console.log("draw");
   const ytick = 20;
   const xtick = chart.maxX / 4;
 
@@ -249,12 +251,18 @@ function draw(ctx, chart, playbyplay, guide) {
 
   drawPoints(chart, ctx, chart.series[0], STROKE_STYLE_AWAY)
   drawPoints(chart, ctx, chart.series[1], STROKE_STYLE_HOME)
-  console.log("draw: done");
+  // console.log("draw: done");
 }
 
-function init(playbyplay) {
+function init(playbyplay, boxscore) {
   console.log(playbyplay)
   console.log(playbyplay["game"]["gameId"])
+  console.log(boxscore["game"]["gameId"])
+  if (playbyplay["game"]["gameId"] !== boxscore["game"]["gameId"]) {
+    console.log("gameId mismatch");
+    return;
+  }
+
   const canvas = document.getElementById("pbp");
   canvas.width = 1900;
   canvas.height = 900;
@@ -270,8 +278,8 @@ function init(playbyplay) {
 
   const chart = new Chart(chart_x0, chart_y0, chart_width, chart_height, maxX, maxY)
 
-  const teamTricodeAway = "MIN";
-  const teamTricodeHome = "DEN";
+  const teamTricodeAway = boxscore["game"]["awayTeam"]["teamTricode"]
+  const teamTricodeHome = boxscore["game"]["homeTeam"]["teamTricode"]
 
   addScoreSeries(chart, playbyplay, teamTricodeAway, STROKE_STYLE_AWAY);
   addScoreSeries(chart, playbyplay, teamTricodeHome, STROKE_STYLE_HOME);
@@ -283,7 +291,7 @@ function init(playbyplay) {
     const imageLoaded = {};
 
     canvas.addEventListener("mousemove", (e) => {
-      console.log("mousemove")
+      // console.log("mousemove")
       const [x, y] = [e.offsetX, e.offsetY];
       // console.log(x, y);
       let guide = null;
@@ -332,7 +340,7 @@ function init(playbyplay) {
           img.src = url;
         }
       }
-      console.log("mousemove done")
+      // console.log("mousemove done")
     });
 
     console.log(WebFont);
@@ -349,4 +357,4 @@ function init(playbyplay) {
   }
 }
 
-init(_playbypay)
+init(_playbypay, _boxscore)
