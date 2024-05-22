@@ -9,7 +9,8 @@ from datetime import datetime
 # game_id = "0042300224"
 # game_id = "0042300235"
 # game_id = "0022300274"
-game_id = "0042300237"
+# game_id = "0042300237"
+game_id = "0042300301"
 
 
 def download_playbyplay(game_id):
@@ -25,7 +26,9 @@ def download_playbyplay(game_id):
 
 def download_boxscore(game_id):
     data = boxscore.BoxScore(game_id)
-    print(json.dumps(json.loads(data.get_json()), indent=2))
+
+    with open(f"{game_id}_boxscore.txt", "w") as f:
+        f.write(json.dumps(json.loads(data.get_json()), indent=2))
 
     with open(f"{game_id}_boxscore.json", "w") as f:
         f.write(data.get_json())
@@ -47,7 +50,7 @@ def download_stats_boxscore(game_id):
 
 print(str(datetime.now().date()))
 
-# download_playbyplay(game_id)
+download_playbyplay(game_id)
 download_boxscore(game_id)
 # download_scoreboard()
 

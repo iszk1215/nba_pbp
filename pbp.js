@@ -1,7 +1,9 @@
 // import _playbypay from "./0042300232.json" with {type: "json"}
 // import _playbypay from "./0042300224.json" with {type: "json"}
-import _playbypay from "./0042300237_playbyplay.json" with {type: "json"}
-import _boxscore from "./0042300237_boxscore.json" with {type: "json"}
+// import _playbypay from "./0042300237_playbyplay.json" with {type: "json"}
+// import _boxscore from "./0042300237_boxscore.json" with {type: "json"}
+import _playbypay from "./0042300301_playbyplay.json" with {type: "json"}
+import _boxscore from "./0042300301_boxscore.json" with {type: "json"}
 
 const POINTS_BY_ACTION = {
   "freethrow": 1,
@@ -9,6 +11,7 @@ const POINTS_BY_ACTION = {
   "3pt": 3,
 };
 const SECONDS_IN_REGULAR_PERIOD = 12 * 60;
+const SECONDS_IN_OVERTIME_PREIOD = 5 * 60;
 const STROKE_STYLE_HOME = "rgb(255, 198, 39)";
 const STROKE_STYLE_AWAY = "rgb(12, 35, 64)";
 const STROKE_STYLE_GRID = "rgb(200, 200, 200)";
@@ -96,7 +99,12 @@ function getElapsed(action) {
   const min = parseInt(clock[2]) * 10 + parseInt(clock[3]);
   const sec = parseInt(clock[5]) * 10 + parseInt(clock[6]);
   const subsec = parseInt(clock[8]) * 0.1 + parseInt(clock[9]) * 0.01;
-  return SECONDS_IN_REGULAR_PERIOD * (period - 1) + SECONDS_IN_REGULAR_PERIOD - (min * 60 + sec + subsec);
+  const clock_in_sec = min * 60 + sec + subsec;
+  if (period < 5) {
+    return SECONDS_IN_REGULAR_PERIOD * (period - 1) + SECONDS_IN_REGULAR_PERIOD - clock_in_sec;
+  } else { // overtime 
+    return SECONDS_IN_REGULAR_PERIOD * 4 + SECONDS_IN_OVERTIME_PREIOD - clock_in_sec;
+  }
 }
 
 function addScoreSeries(chart, playbyplay, teamTricode, style) {
@@ -145,7 +153,7 @@ function drawPoints(chart, ctx, series, strokeStyle) {
 
   {
     const [x0, y0] = last_score;
-    const x1 = chart.getX(12 * 60 * 4);
+    const x1 = chart.getX(chart.maxX);
     chart.drawLineP(ctx, x0, y0, x1, y0, 2);
   }
 
@@ -173,10 +181,11 @@ function getMaxScore(playbyplay) {
   return Math.max(last["scoreAway"], last["scoreHome"])
 }
 
-function draw(ctx, chart, playbyplay, guide) {
+function draw(ctx, chart, playbyplay, boxscore, guide) {
   // console.log("draw");
+  const lastPeriod = boxscore["game"]["period"];
   const ytick = 20;
-  const xtick = chart.maxX / 4;
+  const xtick = SECONDS_IN_REGULAR_PERIOD;
 
   // ctx.clearRect(0, 0, chart.width, chart.height);
 
@@ -186,6 +195,10 @@ function draw(ctx, chart, playbyplay, guide) {
   for (let y = 0; y <= chart.maxY; y += ytick)
     chart.drawLine(ctx, 0, y, chart.maxX, y, 1);
   for (let x = 0; x <= chart.maxX; x += xtick)
+    chart.drawLine(ctx, x, 0, x, chart.maxY, 1);
+
+  // overtime
+  for (let x = SECONDS_IN_REGULAR_PERIOD * 4 + SECONDS_IN_OVERTIME_PREIOD; x <= chart.maxX; x += SECONDS_IN_OVERTIME_PREIOD)
     chart.drawLine(ctx, x, 0, x, chart.maxY, 1);
 
   // axis label
@@ -204,6 +217,13 @@ function draw(ctx, chart, playbyplay, guide) {
     ctx.fillText("Q3", x, y);
     x = chart.getX(0 + SECONDS_IN_REGULAR_PERIOD * 3 + SECONDS_IN_REGULAR_PERIOD / 2);
     ctx.fillText("Q4", x, y);
+
+    for (let ot = 1; ot + 4 <= lastPeriod; ++ot) {
+
+      x = chart.getX(SECONDS_IN_REGULAR_PERIOD * 4
+        + SECONDS_IN_OVERTIME_PREIOD * (ot - 1) + SECONDS_IN_OVERTIME_PREIOD / 2);
+      ctx.fillText(`OT${ot}`, x, y);
+    }
 
     // y
 
@@ -224,29 +244,55 @@ function draw(ctx, chart, playbyplay, guide) {
     chart.drawLineP(ctx, x, chart.y0, x, chart.y0 + chart.height);
     // chart.drawLineP(ctx, chart.x0, y, chart.x0 + chart.width, y);
 
-    // ctx.fillText(`${score}`, chart.getX(0) - 4, y);
+    let clock;
+    let seconds_in_period = seconds;
+    if (seconds < SECONDS_IN_REGULAR_PERIOD * 4) {
+      while (seconds_in_period > SECONDS_IN_REGULAR_PERIOD) {
+        seconds_in_period -= SECONDS_IN_REGULAR_PERIOD;
+      }
+      clock = SECONDS_IN_REGULAR_PERIOD - seconds_in_period;
+    } else {
+      seconds_in_period -= SECONDS_IN_REGULAR_PERIOD * 4;
+      while (seconds_in_period > SECONDS_IN_OVERTIME_PREIOD) {
+        seconds_in_period -= SECONDS_IN_OVERTIME_PREIOD;
+      }
+      clock = SECONDS_IN_OVERTIME_PREIOD - seconds_in_period;
+    }
+    const min = String(parseInt(clock / 60)).padStart(2, "0");
+    const sec = String(parseInt(clock - 60 * min)).padStart(2, "0");
+
     ctx.textAlign = "center";
     ctx.textBaseline = "top";
-    const q = parseInt(seconds / SECONDS_IN_REGULAR_PERIOD);
-    const seconds_in_period = seconds - q * SECONDS_IN_REGULAR_PERIOD;
-    const clock_in_second = SECONDS_IN_REGULAR_PERIOD - seconds_in_period;
-    const min = String(parseInt(clock_in_second / 60)).padStart(2, "0");
-    const sec = String(parseInt(clock_in_second - 60 * min)).padStart(2, "0");
     ctx.fillText(`${min}:${sec}`, x, chart.getY(0) + 4);
 
     // score difference
     const obj0 = chart.series[0].findLast(obj => obj.px <= x);
     const obj1 = chart.series[1].findLast(obj => obj.px <= x);
-    const latest = obj0.px > obj1.px ? obj0 : obj1;
-    const diff = Math.abs(latest.props["scoreHome"] - latest.props["scoreAway"])
+    let diff = 0, py0, py1;
+    let latest = null;
+    if (obj0 && obj1) {
+      latest = obj0.px > obj1.px ? obj0 : obj1;
+      py0 = obj0.py;
+      py1 = obj1.py;
+    } else if (obj0 || obj1) {
+      latest = obj0 ? obj0 : obj1;
+      py0 = latest.py;
+      py1 = 0;
+    } else {
+    }
 
-    ctx.beginPath();
-    ctx.lineWidth = 4;
-    chart.drawLineP(ctx, x, obj0.py, x, obj1.py, 4);
-    ctx.stroke()
-    ctx.textAlign = "right";
-    ctx.textBaseline = "middle";
-    ctx.fillText(`${diff}`, x - 4, (obj0.py + obj1.py) / 2);
+    if (latest)
+      diff = Math.abs(latest.props["scoreHome"] - latest.props["scoreAway"])
+
+    if (diff > 0) {
+      ctx.beginPath();
+      ctx.lineWidth = 4;
+      chart.drawLineP(ctx, x, py0, x, py1, 4);
+      ctx.stroke()
+      ctx.textAlign = "right";
+      ctx.textBaseline = "middle";
+      ctx.fillText(`${diff}`, x - 4, (py0 + py1) / 2);
+    }
   }
 
   drawPoints(chart, ctx, chart.series[0], STROKE_STYLE_AWAY)
@@ -254,16 +300,42 @@ function draw(ctx, chart, playbyplay, guide) {
   // console.log("draw: done");
 }
 
-function init(playbyplay, boxscore) {
-  console.log(playbyplay)
-  console.log(playbyplay["game"]["gameId"])
-  console.log(boxscore["game"]["gameId"])
-  if (playbyplay["game"]["gameId"] !== boxscore["game"]["gameId"]) {
-    console.log("gameId mismatch");
-    return;
-  }
+function addPane(chart, drawFunc) {
+  const parentElement = document.getElementById("pbp-chart");
 
-  const canvas = document.getElementById("pbp");
+  const div = document.createElement("div");
+  const text = document.createTextNode("hello");
+  div.style.position = "absolute";
+  div.style.top = "200px";
+  div.style.left = "60px";
+  div.appendChild(text);
+  div.addEventListener("mouseenter", (ev) => {
+    console.log("mouseenter");
+    chart.series.forEach(series => {
+      series.forEach(obj => {
+        if (obj.props["personId"] == 1630162) {
+          console.log(obj.props["personId"]);
+          obj.r = SCORE_RADIUS + 2;
+        }
+      });
+    });
+    drawFunc();
+  });
+
+  div.addEventListener("mouseleave", (ev) => {
+    console.log("mouseleave");
+    chart.series.forEach(series => {
+      series.forEach(obj => {
+        obj.r = SCORE_RADIUS;
+      });
+    });
+    drawFunc();
+  });
+
+  parentElement.appendChild(div);
+}
+
+function initChart(playbyplay, boxscore, canvas, ctx) {
   canvas.width = 1900;
   canvas.height = 900;
 
@@ -272,9 +344,12 @@ function init(playbyplay, boxscore) {
   const chart_width = 1200;
   const chart_height = 800;
 
+  const lastPeriod = boxscore["game"]["period"];
+
   const maxScore = getMaxScore(playbyplay)
-  const maxX = 60 * 12 * 4;
-  const maxY = Math.max(maxScore, 120)
+  const maxX = 4 * SECONDS_IN_REGULAR_PERIOD + (lastPeriod - 4) * SECONDS_IN_OVERTIME_PREIOD;
+  // const maxY = Math.max(maxScore, 120)
+  const maxY = Math.ceil(maxScore / 20) * 20;
 
   const chart = new Chart(chart_x0, chart_y0, chart_width, chart_height, maxX, maxY)
 
@@ -284,8 +359,10 @@ function init(playbyplay, boxscore) {
   addScoreSeries(chart, playbyplay, teamTricodeAway, STROKE_STYLE_AWAY);
   addScoreSeries(chart, playbyplay, teamTricodeHome, STROKE_STYLE_HOME);
 
-  if (canvas.getContext) {
-    const ctx = canvas.getContext("2d");
+
+  //if (canvas.getContext) {
+  if (true) {
+    // const ctx = canvas.getContext("2d");
 
     const headshots = {};
     const imageLoaded = {};
@@ -316,17 +393,20 @@ function init(playbyplay, boxscore) {
         });
       }
 
-      draw(ctx, chart, playbyplay, guide);
+      draw(ctx, chart, playbyplay, boxscore, guide);
 
       if (imgObj) {
         const imgW = 26 * 3;
-        const imgH = 19 * 3;
+        const imgH = 16 * 3;
         const personId = imgObj.props["personId"];
         let img = headshots[personId];
         let loaded = imageLoaded[personId];
         if (img) {
           if (loaded) {
-            ctx.drawImage(img, imgObj.px - imgW - 6, imgObj.py - imgH - 6, imgW, imgH);
+            // ctx.drawImage(img, imgObj.px - imgW - 6, imgObj.py - imgH - 6, imgW, imgH);
+            ctx.drawImage(img,
+              0, 0, 260, 160,
+              imgObj.px - imgW - 6, imgObj.py - imgH - 6, imgW, imgH);
           }
         } else {
           const img = new Image();
@@ -334,7 +414,9 @@ function init(playbyplay, boxscore) {
           //console.log(imgObj.px, imgObj.py);
           img.addEventListener("load", function() {
             imageLoaded[personId] = true;
-            ctx.drawImage(img, imgObj.px - imgW - 6, imgObj.py - imgH - 6, imgW, imgH);
+            ctx.drawImage(img,
+              0, 0, 260, 160,
+              imgObj.px - imgW - 6, imgObj.py - imgH - 6, imgW, imgH);
           });
           const url = `https://cdn.nba.com/headshots/nba/latest/260x190/${imgObj.props["personId"]}.png`;
           img.src = url;
@@ -343,17 +425,34 @@ function init(playbyplay, boxscore) {
       // console.log("mousemove done")
     });
 
-    console.log(WebFont);
     WebFont.load({
       google: {
         families: [FONT_FAMILY],
       },
       active: function() {
-        console.log("active");
-        draw(ctx, chart, playbyplay);
-        console.log("done");
+        draw(ctx, chart, playbyplay, boxscore);
       },
     });
+
+
+    addPane(chart, () => { draw(ctx, chart, playbyplay, boxscore); });
+  }
+}
+
+function init(playbyplay, boxscore) {
+  console.log(playbyplay)
+  console.log(boxscore)
+
+  console.log(playbyplay["game"]["gameId"])
+  if (playbyplay["game"]["gameId"] !== boxscore["game"]["gameId"]) {
+    console.log("gameId mismatch");
+    return;
+  }
+
+  const canvas = document.getElementById("pbp");
+  if (canvas.getContext) {
+    const ctx = canvas.getContext("2d");
+    initChart(playbyplay, boxscore, canvas, ctx);
   }
 }
 
