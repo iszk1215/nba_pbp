@@ -112,7 +112,8 @@ function addScoreSeries(chart, playbyplay, teamTricode, style) {
   if (actions.length == 0)
     return;
 
-  const actionsWithShotResults = actions.filter(a => a["shotResult"] && a["teamTricode"] === teamTricode)
+  const actionsWithShotResults = actions.filter(
+    a => a["shotResult"] && a["teamTricode"] === teamTricode)
 
 
   const series = []
@@ -175,12 +176,6 @@ function drawPoints(chart, ctx, series, strokeStyle) {
   });
 }
 
-function getMaxScore(playbyplay) {
-  const actions = playbyplay["game"]["actions"]
-  const last = actions[actions.length - 1]
-  return Math.max(last["scoreAway"], last["scoreHome"])
-}
-
 function draw(ctx, chart, playbyplay, boxscore, guide) {
   // console.log("draw");
   const lastPeriod = boxscore["game"]["period"];
@@ -207,30 +202,25 @@ function draw(ctx, chart, playbyplay, boxscore, guide) {
     ctx.fillStyle = "rgb(100, 100, 100)";
     ctx.textAlign = "center";
     ctx.textBaseline = "top";
-    let x;
     let y = chart.getY(0) + 4; // 4 = margin
-    x = chart.getX(0 + SECONDS_IN_REGULAR_PERIOD / 2);
-    ctx.fillText("Q1", x, y);
-    x = chart.getX(0 + SECONDS_IN_REGULAR_PERIOD + SECONDS_IN_REGULAR_PERIOD / 2);
-    ctx.fillText("Q2", x, y);
-    x = chart.getX(0 + SECONDS_IN_REGULAR_PERIOD * 2 + SECONDS_IN_REGULAR_PERIOD / 2);
-    ctx.fillText("Q3", x, y);
-    x = chart.getX(0 + SECONDS_IN_REGULAR_PERIOD * 3 + SECONDS_IN_REGULAR_PERIOD / 2);
-    ctx.fillText("Q4", x, y);
 
-    for (let ot = 1; ot + 4 <= lastPeriod; ++ot) {
+    for (let i = 0; i < 4; ++i) {
+      const x = chart.getX(SECONDS_IN_REGULAR_PERIOD * i + SECONDS_IN_REGULAR_PERIOD / 2);
+      ctx.fillText(`Q${i + 1}`, x, y);
+    }
 
-      x = chart.getX(SECONDS_IN_REGULAR_PERIOD * 4
-        + SECONDS_IN_OVERTIME_PREIOD * (ot - 1) + SECONDS_IN_OVERTIME_PREIOD / 2);
-      ctx.fillText(`OT${ot}`, x, y);
+    // overtime
+    for (let i = 4; i < lastPeriod; ++i) {
+      const x = chart.getX(SECONDS_IN_REGULAR_PERIOD * 4
+        + SECONDS_IN_OVERTIME_PREIOD * (i - 4) + SECONDS_IN_OVERTIME_PREIOD / 2);
+      ctx.fillText(`OT${i - 3}`, x, y);
     }
 
     // y
-
     ctx.textAlign = "right";
     ctx.textBaseline = "middle";
     for (let score = 0; score <= chart.maxY; score += ytick) {
-      x = chart.getX(0) - 4;
+      const x = chart.getX(0) - 4;
       y = chart.getY(score);
       ctx.fillText(`${score}`, x, y);
     }
@@ -242,7 +232,6 @@ function draw(ctx, chart, playbyplay, boxscore, guide) {
     const [seconds, score] = chart.toLogical(x, y);
     ctx.strokeStyle = STROKE_STYLE_GRID;
     chart.drawLineP(ctx, x, chart.y0, x, chart.y0 + chart.height);
-    // chart.drawLineP(ctx, chart.x0, y, chart.x0 + chart.width, y);
 
     let clock;
     let seconds_in_period = seconds;
@@ -326,7 +315,7 @@ function addBoxscore(chart, drawFunc, boxscore) {
   elem.style.left = "60px";
 
   elem.addEventListener("mouseenter", (ev) => {
-    console.log("mouseenter");
+    // console.log("mouseenter");
     chart.series.forEach(series => {
       series.forEach(obj => {
         if (obj.props["personId"] == 1630162) {
@@ -339,7 +328,7 @@ function addBoxscore(chart, drawFunc, boxscore) {
   });
 
   elem.addEventListener("mouseleave", (ev) => {
-    console.log("mouseleave");
+    //console.log("mouseleave");
     chart.series.forEach(series => {
       series.forEach(obj => {
         obj.r = SCORE_RADIUS;
@@ -350,6 +339,12 @@ function addBoxscore(chart, drawFunc, boxscore) {
 
   const parentElement = document.getElementById("pbp-chart");
   parentElement.appendChild(elem);
+}
+
+function getMaxScore(playbyplay) {
+  const actions = playbyplay["game"]["actions"]
+  const last = actions[actions.length - 1]
+  return Math.max(last["scoreAway"], last["scoreHome"])
 }
 
 function initChart(playbyplay, boxscore, canvas, ctx) {
@@ -376,84 +371,83 @@ function initChart(playbyplay, boxscore, canvas, ctx) {
   addScoreSeries(chart, playbyplay, teamTricodeAway, STROKE_STYLE_AWAY);
   addScoreSeries(chart, playbyplay, teamTricodeHome, STROKE_STYLE_HOME);
 
+  const headshots = {};
+  const imageLoaded = {};
 
-  //if (canvas.getContext) {
-  if (true) {
-    // const ctx = canvas.getContext("2d");
+  canvas.addEventListener("mouseleave", (e) => {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    draw(ctx, chart, playbyplay, boxscore, null);
+  });
 
-    const headshots = {};
-    const imageLoaded = {};
+  canvas.addEventListener("mousemove", (e) => {
+    // console.log("mousemove")
+    const [x, y] = [e.offsetX, e.offsetY];
+    // console.log(x, y);
+    let guide = null;
+    let imgObj = null;
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    if (chart.isin(x, y)) {
+      guide = [x, y];
 
-    canvas.addEventListener("mousemove", (e) => {
-      // console.log("mousemove")
-      const [x, y] = [e.offsetX, e.offsetY];
-      // console.log(x, y);
-      let guide = null;
-      let imgObj = null;
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
-      if (chart.isin(x, y)) {
-        guide = [x, y];
-
-        chart.series.forEach(series => {
-          series.forEach(obj => {
-            if (obj.isin(x, y)) {
-              if (!obj.isMouseOn) {
-                obj.isMouseOn = true;
-                obj.r = SCORE_RADIUS + 2;
-              }
-              imgObj = obj;
-            } else if (obj.isMouseOn) {
-              obj.isMouseOn = false;
-              obj.r = SCORE_RADIUS;
+      chart.series.forEach(series => {
+        series.forEach(obj => {
+          if (obj.isin(x, y)) {
+            if (!obj.isMouseOn) {
+              obj.isMouseOn = true;
+              obj.r = SCORE_RADIUS + 2;
             }
-          });
-        });
-      }
-
-      draw(ctx, chart, playbyplay, boxscore, guide);
-
-      if (imgObj) {
-        const imgW = 26 * 3;
-        const imgH = 16 * 3;
-        const personId = imgObj.props["personId"];
-        let img = headshots[personId];
-        let loaded = imageLoaded[personId];
-        if (img) {
-          if (loaded) {
-            // ctx.drawImage(img, imgObj.px - imgW - 6, imgObj.py - imgH - 6, imgW, imgH);
-            ctx.drawImage(img,
-              0, 0, 260, 160,
-              imgObj.px - imgW - 6, imgObj.py - imgH - 6, imgW, imgH);
+            imgObj = obj;
+          } else if (obj.isMouseOn) {
+            obj.isMouseOn = false;
+            obj.r = SCORE_RADIUS;
           }
-        } else {
-          const img = new Image();
-          headshots[personId] = img;
-          //console.log(imgObj.px, imgObj.py);
-          img.addEventListener("load", function() {
-            imageLoaded[personId] = true;
-            ctx.drawImage(img,
-              0, 0, 260, 160,
-              imgObj.px - imgW - 6, imgObj.py - imgH - 6, imgW, imgH);
-          });
-          const url = `https://cdn.nba.com/headshots/nba/latest/260x190/${imgObj.props["personId"]}.png`;
-          img.src = url;
+        });
+      });
+    }
+
+    draw(ctx, chart, playbyplay, boxscore, guide);
+
+    if (imgObj) {
+      const imgW = 26 * 3;
+      const imgH = 16 * 3;
+      const personId = imgObj.props["personId"];
+      let img = headshots[personId];
+      let loaded = imageLoaded[personId];
+      if (img) {
+        if (loaded) {
+          // ctx.drawImage(img, imgObj.px - imgW - 6, imgObj.py - imgH - 6, imgW, imgH);
+          ctx.drawImage(img,
+            0, 0, 260, 160,
+            imgObj.px - imgW - 6, imgObj.py - imgH - 6, imgW, imgH);
         }
+      } else {
+        const img = new Image();
+        headshots[personId] = img;
+        //console.log(imgObj.px, imgObj.py);
+        img.addEventListener("load", function() {
+          imageLoaded[personId] = true;
+          ctx.drawImage(img,
+            0, 0, 260, 160,
+            imgObj.px - imgW - 6, imgObj.py - imgH - 6, imgW, imgH);
+        });
+        const url = `https://cdn.nba.com/headshots/nba/latest/260x190/${imgObj.props["personId"]}.png`;
+        img.src = url;
       }
-      // console.log("mousemove done")
-    });
+    }
+    // console.log("mousemove done")
+  });
 
-    WebFont.load({
-      google: {
-        families: [FONT_FAMILY],
-      },
-      active: function() {
-        draw(ctx, chart, playbyplay, boxscore);
-      },
-    });
+  WebFont.load({
+    google: {
+      families: [FONT_FAMILY],
+    },
+    active: function() {
+      draw(ctx, chart, playbyplay, boxscore);
+    },
+  });
 
 
-    addBoxscore(chart, () => { draw(ctx, chart, playbyplay, boxscore); }, boxscore);
-  }
+  addBoxscore(chart, () => { draw(ctx, chart, playbyplay, boxscore); }, boxscore);
 }
 
 function init(playbyplay, boxscore) {
