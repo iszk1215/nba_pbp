@@ -268,6 +268,7 @@ function draw(ctx, chart, playbyplay, boxscore, guide) {
     // score difference
     const obj0 = chart.series[0].findLast(obj => obj.px <= x);
     const obj1 = chart.series[1].findLast(obj => obj.px <= x);
+
     let diff = 0, py0, py1;
     let latest = null;
     if (obj0 && obj1) {
@@ -277,8 +278,7 @@ function draw(ctx, chart, playbyplay, boxscore, guide) {
     } else if (obj0 || obj1) {
       latest = obj0 ? obj0 : obj1;
       py0 = latest.py;
-      py1 = 0;
-    } else {
+      py1 = chart.getY(0);
     }
 
     if (latest)
@@ -300,15 +300,30 @@ function draw(ctx, chart, playbyplay, boxscore, guide) {
   // console.log("draw: done");
 }
 
-function addPane(chart, drawFunc) {
-  const parentElement = document.getElementById("pbp-chart");
+function makeBoxscoreElement(boxscore) {
+  const root = document.createElement("div");
+  root.style.position = "absolute";
+  root.style.top = "200px";
+  root.style.left = "60px";
+  root.style.fontFamily = "Roboto";
+  root.style.background = "white";
+  root.style.border = "1px solid";
 
-  const div = document.createElement("div");
-  const text = document.createTextNode("hello");
-  div.style.position = "absolute";
-  div.style.top = "200px";
-  div.style.left = "60px";
-  div.appendChild(text);
+  boxscore["game"]["awayTeam"]["players"].forEach(player => {
+    console.log(player["name"])
+    const div = document.createElement("div");
+    const text = document.createTextNode(player["nameI"]);
+    div.style.margin = "2px";
+    div.appendChild(text);
+    root.append(div);
+  });
+
+  return root;
+}
+
+function addPane(chart, drawFunc, boxscore) {
+  const div = makeBoxscoreElement(boxscore);
+
   div.addEventListener("mouseenter", (ev) => {
     console.log("mouseenter");
     chart.series.forEach(series => {
@@ -332,6 +347,7 @@ function addPane(chart, drawFunc) {
     drawFunc();
   });
 
+  const parentElement = document.getElementById("pbp-chart");
   parentElement.appendChild(div);
 }
 
@@ -435,7 +451,7 @@ function initChart(playbyplay, boxscore, canvas, ctx) {
     });
 
 
-    addPane(chart, () => { draw(ctx, chart, playbyplay, boxscore); });
+    addPane(chart, () => { draw(ctx, chart, playbyplay, boxscore); }, boxscore);
   }
 }
 
