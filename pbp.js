@@ -302,9 +302,6 @@ function draw(ctx, chart, playbyplay, boxscore, guide) {
 
 function makeBoxscoreElement(boxscore) {
   const root = document.createElement("div");
-  root.style.position = "absolute";
-  root.style.top = "200px";
-  root.style.left = "60px";
   root.style.fontFamily = "Roboto";
   root.style.background = "white";
   root.style.border = "1px solid";
@@ -321,10 +318,14 @@ function makeBoxscoreElement(boxscore) {
   return root;
 }
 
-function addPane(chart, drawFunc, boxscore) {
-  const div = makeBoxscoreElement(boxscore);
+function addBoxscore(chart, drawFunc, boxscore) {
+  const elem = makeBoxscoreElement(boxscore);
 
-  div.addEventListener("mouseenter", (ev) => {
+  elem.style.position = "absolute";
+  elem.style.top = "200px";
+  elem.style.left = "60px";
+
+  elem.addEventListener("mouseenter", (ev) => {
     console.log("mouseenter");
     chart.series.forEach(series => {
       series.forEach(obj => {
@@ -337,7 +338,7 @@ function addPane(chart, drawFunc, boxscore) {
     drawFunc();
   });
 
-  div.addEventListener("mouseleave", (ev) => {
+  elem.addEventListener("mouseleave", (ev) => {
     console.log("mouseleave");
     chart.series.forEach(series => {
       series.forEach(obj => {
@@ -348,7 +349,7 @@ function addPane(chart, drawFunc, boxscore) {
   });
 
   const parentElement = document.getElementById("pbp-chart");
-  parentElement.appendChild(div);
+  parentElement.appendChild(elem);
 }
 
 function initChart(playbyplay, boxscore, canvas, ctx) {
@@ -451,7 +452,7 @@ function initChart(playbyplay, boxscore, canvas, ctx) {
     });
 
 
-    addPane(chart, () => { draw(ctx, chart, playbyplay, boxscore); }, boxscore);
+    addBoxscore(chart, () => { draw(ctx, chart, playbyplay, boxscore); }, boxscore);
   }
 }
 
