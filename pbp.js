@@ -2,8 +2,10 @@
 // import _playbypay from "./0042300224.json" with {type: "json"}
 // import _playbypay from "./0042300237_playbyplay.json" with {type: "json"}
 // import _boxscore from "./0042300237_boxscore.json" with {type: "json"}
-import _playbypay from "./0042300301_playbyplay.json" with {type: "json"}
-import _boxscore from "./0042300301_boxscore.json" with {type: "json"}
+// import _playbypay from "./0042300301_playbyplay.json" with {type: "json"}
+// import _boxscore from "./0042300301_boxscore.json" with {type: "json"}
+import _playbypay from "./data/0042300312_playbyplay.json" with {type: "json"}
+import _boxscore from "./data/0042300312_boxscore.json" with {type: "json"}
 
 const POINTS_BY_ACTION = {
   "freethrow": 1,
@@ -77,6 +79,10 @@ class Chart {
     return this.y0 + this.height - this.height * y / this.maxY;
   }
 
+  toCanvasXY(x, y) {
+    return [this.getX(x), this.getY(y)]
+  }
+
   drawLineP(ctx, x0, y0, x1, y1, lineWidth) {
     const offset = 0; lineWidth / 2;
     ctx.lineWidth = lineWidth;
@@ -87,9 +93,9 @@ class Chart {
   }
 
   drawLine(ctx, x0, y0, x1, y1, lineWidth) {
-    const [x2, y2] = [this.getX(x0), this.getY(y0)];
-    const [x3, y3] = [this.getX(x1), this.getY(y1)];
-    this.drawLineP(ctx, x2, y2, x3, y3, lineWidth);
+    const [cx0, cy0] = this.toCanvasXY(x0, y0);
+    const [cx1, cy1] = this.toCanvasXY(x1, y1);
+    this.drawLineP(ctx, cx0, cy0, cx1, cy1, lineWidth);
   }
 } // class Chart
 
@@ -291,28 +297,52 @@ function draw(ctx, chart, playbyplay, boxscore, guide) {
 
 function makeBoxscoreElement(boxscore) {
   const root = document.createElement("div");
-  root.style.fontFamily = "Roboto";
-  root.style.background = "white";
-  root.style.border = "1px solid";
+  root.className = "bg-white";
 
-  boxscore["game"]["awayTeam"]["players"].forEach(player => {
-    console.log(player["name"])
-    const div = document.createElement("div");
-    const text = document.createTextNode(player["nameI"]);
-    div.style.margin = "2px";
-    div.appendChild(text);
-    root.append(div);
+  const makeTd = (text, className) => {
+    const td = document.createElement("td");
+    td.className = `before:content-['${text.replaceAll(" ", "_")}'] before:font-bold before:invisible before:block before:h-0`;
+    if (className)
+      td.className += " " + className;
+    // td.className += " border-y-2 border-transparent hover:border-y-2 hover:border-black";
+    td.appendChild(document.createTextNode(text));
+    return td;
+  };
+
+  const team = boxscore["game"]["awayTeam"];
+
+  const border_colors = ["border-red-300", "border-blue-300", "border-green-300"];
+
+  const table = document.createElement("table")
+  table.className = "border-separate border-spacing-1";
+  team["players"].forEach((player, i) => {
+    if (player["played"] === "0")
+      return;
+
+    const tr = document.createElement("tr");
+    // tr.className = "hover:font-bold hover:border-2 hover:border-black border-2 " + border_colors[i % 3];
+    tr.className = "hover:font-bold"
+    tr.append(makeTd(player["jerseyNum"], "text-right px-1 font-mono"));
+    tr.append(makeTd(player["nameI"], "px-1"));
+    tr.append(makeTd(player["statistics"]["minutes"].replace("PT", "").replace("M", ":").replace(/\..*/, ""), "text-right font-mono"));
+    tr.append(makeTd(player["statistics"]["points"].toString(), "text-right px-1 font-mono"));
+
+    table.append(tr);
   });
 
+  root.append(table);
   return root;
 }
 
 function addBoxscore(chart, drawFunc, boxscore) {
   const elem = makeBoxscoreElement(boxscore);
 
-  elem.style.position = "absolute";
+  elem.classList.add("absolute");
+  // elem.classList.add("top-48");
+  // elem.classList.add("left-16");
+
   elem.style.top = "200px";
-  elem.style.left = "60px";
+  elem.style.left = "64px";
 
   elem.addEventListener("mouseenter", (ev) => {
     // console.log("mouseenter");

@@ -2,12 +2,14 @@
 <html>
   <head>
     <script src="https://ajax.googleapis.com/ajax/libs/webfont/1.6.26/webfont.js"></script>
+    <!-- <link href="output.css" rel="stylesheet"> -->
+    <script src="https://cdn.tailwindcss.com"></script>
   </head>
   <body>
-    <h1 style="font-family: Roboto; font-size: 16px;">NBA Play-By-Play Chart</h1>
-    <div id="pbp-chart" style="position: relative;">
-      <canvas id="pbp" style="position: absolute"></canvas>
-      <div style="position: absolute; top: 60px; left: 60px; font-family: Roboto; border: solid 1px; padding: 5px; background: white;">
+    <h1 class="text-xs font-serif">NBA Play-By-Play Chart</h1>
+    <div id="pbp-chart" class="relative border">
+      <canvas id="pbp" class="absolute"></canvas>
+      <div class="absolute border border-black p-1 bg-white top-14 left-16">
         2 <b>DEN 112</b><br>
         3 <b>MIN 97</b><br>
         <small>Wed, May 15</small></br>
