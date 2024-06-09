@@ -5,16 +5,13 @@
     <!-- <link href="output.css" rel="stylesheet"> -->
     <script src="https://cdn.tailwindcss.com"></script>
   </head>
-  <body>
-    <h1 class="text-xs font-serif">NBA Play-By-Play Chart</h1>
-    <div id="pbp-chart" class="relative border">
-      <canvas id="pbp" class="absolute"></canvas>
-      <div class="absolute border border-black p-1 bg-white top-14 left-16">
-        2 <b>DEN 112</b><br>
-        3 <b>MIN 97</b><br>
-        <small>Wed, May 15</small></br>
-        <small>Game 6: DEN LEADS 3-2</small>
+  <body class="px-2">
+    <h1 class="text-sm font-serif">NBA Play-By-Play Chart</h1>
+    <div>
+      <div>
+        <b>DEN 112</b> - <b>MIN 97</b> Wed May 15, Game 6: DEN LEADS 3-2
       </div>
+      <div id="pbp-chart"></div>
     </div>
   </body>
   <script src="pbp.js" type="module"></script>

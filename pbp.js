@@ -14,11 +14,41 @@ const POINTS_BY_ACTION = {
 };
 const SECONDS_IN_REGULAR_PERIOD = 12 * 60;
 const SECONDS_IN_OVERTIME_PREIOD = 5 * 60;
-const STROKE_STYLE_HOME = "rgb(255, 198, 39)";
-const STROKE_STYLE_AWAY = "rgb(12, 35, 64)";
+// const STROKE_STYLE_HOME = "rgb(255, 198, 39)";
+// const STROKE_STYLE_AWAY = "rgb(12, 35, 64)";
+const STROKE_STYLE_HOME = "rgb(29, 66, 138)";
+const STROKE_STYLE_AWAY = "rgb(200, 16, 46)";
 const STROKE_STYLE_GRID = "rgb(200, 200, 200)";
-const SCORE_RADIUS = 5;
+const SCORE_RADIUS = 6;
 const FONT_FAMILY = "Roboto";
+
+class Point {
+  constructor(x, y) {
+    this.x = x;
+    this.y = y;
+  }
+};
+
+class Line {
+  constructor(chart, x0, y0, x1, y1, lineWidth, strokeStyle) {
+    const [cx0, cy0] = chart.toCanvasXY(x0, y0);
+    const [cx1, cy1] = chart.toCanvasXY(x1, y1);
+    this.p0 = new Point(cx0, cy0);
+    this.p1 = new Point(cx1, cy1);
+    this.lineWidth = lineWidth;
+    this.strokeStyle = strokeStyle;
+  }
+
+  draw(ctx) {
+    const offset = 0; this.lineWidth / 2;
+    ctx.strokeStyle = this.strokeStyle;
+    ctx.lineWidth = this.lineWidth;
+    ctx.beginPath();
+    ctx.moveTo(this.p0.x + offset, this.p0.y + offset);
+    ctx.lineTo(this.p1.x + offset, this.p1.y + offset);
+    ctx.stroke();
+  }
+};
 
 class Circle {
   constructor(px, py, r, fillStyle, strokeStyle, props) {
@@ -45,7 +75,12 @@ class Chart {
     this.height = height;
     this.maxX = maxX;
     this.maxY = maxY;
-    this.series = []
+    this.series = [];
+    this.objects = [];
+  }
+
+  addObject(obj) {
+    this.objects.push(obj);
   }
 
   addSeries(series) {
@@ -62,7 +97,8 @@ class Chart {
   }
 
   toLogicalY(y) {
-    return parseInt((this.y0 + this.height - y) * this.maxY / this.height);
+    // return parseInt((this.y0 + this.height - y) * this.maxY / this.height);
+    return (this.y0 + this.height - y) * this.maxY / this.height;
   }
 
   toLogical(x, y) {
@@ -121,22 +157,36 @@ function addScoreSeries(chart, playbyplay, teamTricode, style) {
   const actionsWithShotResults = actions.filter(
     a => a["shotResult"] && a["teamTricode"] === teamTricode)
 
-
   const series = []
 
   let score = 0;
+  let last_score = null;
   actionsWithShotResults.forEach(action => {
     if (action["shotResult"] && action["teamTricode"] === teamTricode) {
       const made = action["shotResult"] === "Made";
+      let strokeStyle = style;
+      let radius = SCORE_RADIUS;
       if (action["shotResult"] === "Made") {
         score += POINTS_BY_ACTION[action["actionType"]];
+        strokeStyle = null;
+        radius = SCORE_RADIUS;
       }
       const elapsed = getElapsed(action);
       const x = chart.getX(elapsed);
       const y = chart.getY(score);
       const fillStyle = made ? style : "rgb(255, 255, 255)";
 
-      series.push(new Circle(x, y, SCORE_RADIUS, fillStyle, style, action));
+      series.push(new Circle(x, y, radius, fillStyle, strokeStyle, action));
+
+      if (last_score) {
+        const [x0, y0] = last_score;
+        const [x1, y1] = [elapsed, score];
+        chart.addObject(new Line(chart, x0, y0, x1, y0, 2, strokeStyle));
+        chart.addObject(new Line(chart, x1, y0, x1, y1, 2, strokeStyle));
+      }
+
+
+      last_score = [elapsed, score];
     }
   });
 
@@ -152,33 +202,52 @@ function drawPoints(chart, ctx, series, strokeStyle) {
       return;
 
     const [x0, y0] = last_score;
+    /*
     chart.drawLineP(ctx, x0, y0, obj.px, y0, 2);
     chart.drawLineP(ctx, obj.px, y0, obj.px, obj.py, 2);
+    */
+    const [lx0, ly0] = chart.toLogical(x0, y0);
+    const [lx1, ly1] = chart.toLogical(obj.px, obj.py);
+    const lineWidth = 2;
+    const line0 = new Line(chart, lx0, ly0, lx1, ly0, lineWidth, strokeStyle);
+    const line1 = new Line(chart, lx1, ly0, lx1, ly1, lineWidth, strokeStyle);
+    //line0.draw(ctx);
+    //line1.draw(ctx);
 
     last_score = [obj.px, obj.py];
   });
 
+  /*
   {
     const [x0, y0] = last_score;
     const x1 = chart.getX(chart.maxX);
     chart.drawLineP(ctx, x0, y0, x1, y0, 2);
   }
+  */
 
   series.forEach(obj => {
     const x = obj.px;
     const y = obj.py;
     const r = obj.r;
 
-    ctx.fillStyle = obj.fillStyle;
-    ctx.beginPath();
-    ctx.arc(x, y, r - 1, 0, Math.PI * 2);
-    ctx.fill();
+    if (obj.strokeStyle) {
+      ctx.fillStyle = obj.strokeStyle;
+      // ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.arc(x, y, r, 0, Math.PI * 2);
+      ctx.fill();
 
-    ctx.strokeStyle = obj.strokeStyle;
-    ctx.lineWidth = 2;
-    ctx.beginPath();
-    ctx.arc(x, y, r, 0, Math.PI * 2);
-    ctx.stroke();
+      ctx.fillStyle = obj.fillStyle;
+      ctx.beginPath();
+      ctx.arc(x, y, r - 2, 0, Math.PI * 2);
+      ctx.fill();
+    } else {
+      ctx.fillStyle = obj.fillStyle;
+      ctx.beginPath();
+      ctx.arc(x, y, r, 0, Math.PI * 2);
+      ctx.fill();
+
+    }
   });
 }
 
@@ -290,14 +359,23 @@ function draw(ctx, chart, playbyplay, boxscore, guide) {
     }
   }
 
+  chart.objects.forEach(obj => obj.draw(ctx));
+
   drawPoints(chart, ctx, chart.series[0], STROKE_STYLE_AWAY)
   drawPoints(chart, ctx, chart.series[1], STROKE_STYLE_HOME)
-  // console.log("draw: done");
 }
+
 
 function makeBoxscoreElement(boxscore) {
   const root = document.createElement("div");
   root.className = "bg-white";
+
+  const makeTh = (text) => {
+    const th = document.createElement("td");
+    th.className = "font-bold text-center";
+    th.appendChild(document.createTextNode(text));
+    return th;
+  }
 
   const makeTd = (text, className) => {
     const td = document.createElement("td");
@@ -314,10 +392,37 @@ function makeBoxscoreElement(boxscore) {
   const border_colors = ["border-red-300", "border-blue-300", "border-green-300"];
 
   const table = document.createElement("table")
-  table.className = "border-separate border-spacing-1";
+  table.className = "table-auto border-2";
+  // table.className = "border-2 border-separate border-spacing-1 text-base";
+  // table.style = "border-color: #124D8A; background: #124D8A; color: white;";
+  // table.style = "border-color: #124D8A; background: #C8102A; color: white;";
+
+  const thead = document.createElement("thead");
+  const tr = document.createElement("tr");
+  tr.append(makeTh("#"));
+  tr.append(makeTh("Name"));
+  tr.append(makeTh("MIN"));
+  tr.append(makeTh("FGM"));
+  tr.append(makeTh("FGA"));
+  tr.append(makeTh("FG%"));
+  tr.append(makeTh("PTS"));
+  thead.append(tr)
+
+  const caption = document.createElement("caption");
+  caption.append(document.createTextNode(boxscore["game"]["awayTeam"]["teamName"]));
+
+  table.append(caption)
+  table.append(thead);
+
+  const tbody = document.createElement("tbody");
   team["players"].forEach((player, i) => {
     if (player["played"] === "0")
       return;
+
+    const stats = player["statistics"];
+    const fga = stats["fieldGoalsAttempted"];
+    const fgm = stats["fieldGoalsMade"];
+    const fgp = (fgm / fga).toFixed(2) * 100;
 
     const tr = document.createElement("tr");
     // tr.className = "hover:font-bold hover:border-2 hover:border-black border-2 " + border_colors[i % 3];
@@ -325,10 +430,14 @@ function makeBoxscoreElement(boxscore) {
     tr.append(makeTd(player["jerseyNum"], "text-right px-1 font-mono"));
     tr.append(makeTd(player["nameI"], "px-1"));
     tr.append(makeTd(player["statistics"]["minutes"].replace("PT", "").replace("M", ":").replace(/\..*/, ""), "text-right font-mono"));
+    tr.append(makeTd(fgm.toString(), "text-right px-1 font-mono"));
+    tr.append(makeTd(fga.toString(), "text-right px-1 font-mono"));
+    tr.append(makeTd(fgp.toString(), "text-right px-1 font-mono"));
     tr.append(makeTd(player["statistics"]["points"].toString(), "text-right px-1 font-mono"));
 
-    table.append(tr);
+    tbody.append(tr);
   });
+  table.append(tbody);
 
   root.append(table);
   return root;
@@ -341,7 +450,7 @@ function addBoxscore(chart, drawFunc, boxscore) {
   // elem.classList.add("top-48");
   // elem.classList.add("left-16");
 
-  elem.style.top = "200px";
+  elem.style.top = "70px";
   elem.style.left = "64px";
 
   elem.addEventListener("mouseenter", (ev) => {
@@ -349,7 +458,6 @@ function addBoxscore(chart, drawFunc, boxscore) {
     chart.series.forEach(series => {
       series.forEach(obj => {
         if (obj.props["personId"] == 1630162) {
-          console.log(obj.props["personId"]);
           obj.r = SCORE_RADIUS + 2;
         }
       });
@@ -371,13 +479,56 @@ function addBoxscore(chart, drawFunc, boxscore) {
   parentElement.appendChild(elem);
 }
 
+function makeActionDialog() {
+  const root = document.createElement("div");
+  const img = document.createElement("img");
+  root.appendChild(img);
+
+  const description = document.createTextNode("");
+  root.appendChild(description);
+
+  const baseClass = "absolute z-10 border-solid border border-black shadow-xl bg-white"
+
+  root.className = baseClass + " invisible";
+  img.width = 26 * 3;
+  img.height = 16 * 3;
+
+  const obj = {
+    root: root,
+    setDescription: (text) => {
+      description.nodeValue = text;
+    },
+    setImage: (src, x, y) => {
+      img.src = src
+      root.style.top = `${y}px`;
+      root.style.left = `${x}px`;
+    },
+    setVisible: (flag) => {
+      if (flag) {
+        root.classList.remove("invisible");
+        root.classList.add("visible");
+      } else {
+        root.classList.remove("visible");
+        root.classList.add("invisible");
+      }
+    },
+    setAction: (action, e) => {
+      const src = `https://cdn.nba.com/headshots/nba/latest/260x190/${action["personId"]}.png`;
+      obj.setDescription(action["description"]);
+      obj.setImage(src, e.screenX, e.screenY);
+    },
+  };
+
+  return obj;
+}
+
 function getMaxScore(playbyplay) {
   const actions = playbyplay["game"]["actions"]
   const last = actions[actions.length - 1]
   return Math.max(last["scoreAway"], last["scoreHome"])
 }
 
-function initChart(playbyplay, boxscore, canvas, ctx) {
+function initChart(playbyplay, boxscore, actionDialog, canvas, ctx) {
   canvas.width = 1900;
   canvas.height = 900;
 
@@ -409,61 +560,47 @@ function initChart(playbyplay, boxscore, canvas, ctx) {
     draw(ctx, chart, playbyplay, boxscore, null);
   });
 
+  const onMouseLeave = (obj, e) => {
+    obj.r = SCORE_RADIUS;
+    actionDialog.setVisible(false);
+  }
+
+  const onMouseEnter = (obj, e) => {
+    obj.r = SCORE_RADIUS + 2;
+    actionDialog.setAction(obj.props, e);
+    actionDialog.setVisible(true);
+  };
+
   canvas.addEventListener("mousemove", (e) => {
     // console.log("mousemove")
     const [x, y] = [e.offsetX, e.offsetY];
     // console.log(x, y);
     let guide = null;
-    let imgObj = null;
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     if (chart.isin(x, y)) {
       guide = [x, y];
 
+      let objOnMouse = null;
+
       chart.series.forEach(series => {
         series.forEach(obj => {
           if (obj.isin(x, y)) {
-            if (!obj.isMouseOn) {
-              obj.isMouseOn = true;
-              obj.r = SCORE_RADIUS + 2;
-            }
-            imgObj = obj;
+            objOnMouse = obj;
           } else if (obj.isMouseOn) {
             obj.isMouseOn = false;
-            obj.r = SCORE_RADIUS;
+            onMouseLeave(obj, e);
           }
-        });
-      });
+        })
+      })
+
+      if (objOnMouse) {
+        const obj = objOnMouse;
+        obj.isMouseOn = true;
+        onMouseEnter(obj, e);
+      }
     }
 
     draw(ctx, chart, playbyplay, boxscore, guide);
-
-    if (imgObj) {
-      const imgW = 26 * 3;
-      const imgH = 16 * 3;
-      const personId = imgObj.props["personId"];
-      let img = headshots[personId];
-      let loaded = imageLoaded[personId];
-      if (img) {
-        if (loaded) {
-          // ctx.drawImage(img, imgObj.px - imgW - 6, imgObj.py - imgH - 6, imgW, imgH);
-          ctx.drawImage(img,
-            0, 0, 260, 160,
-            imgObj.px - imgW - 6, imgObj.py - imgH - 6, imgW, imgH);
-        }
-      } else {
-        const img = new Image();
-        headshots[personId] = img;
-        //console.log(imgObj.px, imgObj.py);
-        img.addEventListener("load", function() {
-          imageLoaded[personId] = true;
-          ctx.drawImage(img,
-            0, 0, 260, 160,
-            imgObj.px - imgW - 6, imgObj.py - imgH - 6, imgW, imgH);
-        });
-        const url = `https://cdn.nba.com/headshots/nba/latest/260x190/${imgObj.props["personId"]}.png`;
-        img.src = url;
-      }
-    }
     // console.log("mousemove done")
   });
 
@@ -490,11 +627,24 @@ function init(playbyplay, boxscore) {
     return;
   }
 
-  const canvas = document.getElementById("pbp");
+  const root = document.getElementById("pbp-chart");
+  root.className = "relative border";
+
+  const actionDialog = makeActionDialog();
+  root.appendChild(actionDialog.root);
+
+  const canvas = document.createElement("canvas");
+  canvas.className = "absolute";
+  root.appendChild(canvas);
+
+  // const canvas = document.getElementById("pbp");
   if (canvas.getContext) {
     const ctx = canvas.getContext("2d");
-    initChart(playbyplay, boxscore, canvas, ctx);
+    initChart(playbyplay, boxscore, actionDialog, canvas, ctx);
   }
+
+  const box = document.getElementById("box");
+  // box.className = "hidden";
 }
 
 init(_playbypay, _boxscore)
