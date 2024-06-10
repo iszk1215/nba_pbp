@@ -69,7 +69,8 @@ class Circle {
   }
 
   draw(ctx, chart) {
-    const [x, y, r] = [this.px, this.py, this.r];
+    const [x, y] = chart.toCanvasXY(this.px, this.py);
+    const r = this.r;
     if (this.strokeStyle) {
       ctx.fillStyle = this.strokeStyle;
       // ctx.lineWidth = 2;
@@ -204,7 +205,7 @@ function addScoreSeries(chart, playbyplay, teamTricode, style) {
       chart.addObject(new Line(chart, x0, y0, x1, y0, 2, style));
       chart.addObject(new Line(chart, x1, y0, x1, y1, 2, style));
 
-      const circle = new Circle(x, y, radius, fillStyle, strokeStyle, action);
+      const circle = new Circle(elapsed, score, radius, fillStyle, strokeStyle, action);
       series.push(circle);
       chart.addObject(circle);
 
@@ -267,10 +268,11 @@ function draw(ctx, chart, boxscore, guide) {
 
   // guide
   if (guide) {
-    const [x, y] = guide;
-    const [seconds, score] = chart.toLogical(x, y);
+    const [cx, cy] = chart.toCanvasXY(guide[0], guide[1]);
+    const [seconds, score] = guide;
+    // const [seconds, score] = chart.toLogical(x, y);
     ctx.strokeStyle = STROKE_STYLE_GRID;
-    chart.drawLineP(ctx, x, chart.y0, x, chart.y0 + chart.height);
+    chart.drawLineP(ctx, cx, chart.y0, cx, chart.y0 + chart.height);
 
     let clock;
     let seconds_in_period = seconds;
@@ -291,35 +293,37 @@ function draw(ctx, chart, boxscore, guide) {
 
     ctx.textAlign = "center";
     ctx.textBaseline = "top";
-    ctx.fillText(`${min}:${sec}`, x, chart.getY(0) + 4);
+    ctx.fillText(`${min}:${sec}`, cx, chart.getY(0) + 4);
 
     // score difference
-    const obj0 = chart.series[0].findLast(obj => obj.px <= x);
-    const obj1 = chart.series[1].findLast(obj => obj.px <= x);
+    const obj0 = chart.series[0].findLast(obj => obj.px <= seconds);
+    const obj1 = chart.series[1].findLast(obj => obj.px <= seconds);
 
-    let diff = 0, py0, py1;
+    let diff = 0, ly0, ly1;
     let latest = null;
     if (obj0 && obj1) {
       latest = obj0.px > obj1.px ? obj0 : obj1;
-      py0 = obj0.py;
-      py1 = obj1.py;
+      ly0 = obj0.py;
+      ly1 = obj1.py;
     } else if (obj0 || obj1) {
       latest = obj0 ? obj0 : obj1;
-      py0 = latest.py;
-      py1 = chart.getY(0);
+      ly0 = latest.py;
+      ly1 = chart.getY(0);
     }
 
     if (latest)
       diff = Math.abs(latest.props["scoreHome"] - latest.props["scoreAway"])
 
     if (diff > 0) {
+      const cy0 = chart.getY(ly0);
+      const cy1 = chart.getY(ly1);
       ctx.beginPath();
       ctx.lineWidth = 4;
-      chart.drawLineP(ctx, x, py0, x, py1, 4);
+      chart.drawLineP(ctx, cx, cy0, cx, cy1, 4);
       ctx.stroke()
       ctx.textAlign = "right";
       ctx.textBaseline = "middle";
-      ctx.fillText(`${diff}`, x - 4, (py0 + py1) / 2);
+      ctx.fillText(`${diff}`, cx - 4, (cy0 + cy1) / 2);
     }
   }
 
@@ -534,16 +538,17 @@ function initChart(playbyplay, boxscore, actionDialog, canvas, ctx) {
   canvas.addEventListener("mousemove", (e) => {
     // console.log("mousemove")
     const [x, y] = [e.offsetX, e.offsetY];
+    const [lx, ly] = chart.toLogical(x, y);
     // console.log(x, y);
     let guide = null;
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     if (chart.isin(x, y)) {
-      guide = [x, y];
+      guide = [lx, ly];
 
       let objOnMouse = null;
 
       chart.objects.forEach(obj => {
-        if (obj.isin && obj.isin(x, y)) {
+        if (obj.isin && obj.isin(lx, ly)) {
           objOnMouse = obj;
         } else if (obj.isMouseOn) {
           obj.isMouseOn = false;
