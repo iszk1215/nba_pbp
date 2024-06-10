@@ -30,36 +30,37 @@ class Point {
 };
 
 class Line {
-  constructor(chart, x0, y0, x1, y1, lineWidth, strokeStyle) {
-    const [cx0, cy0] = chart.toCanvasXY(x0, y0);
-    const [cx1, cy1] = chart.toCanvasXY(x1, y1);
-    this.p0 = new Point(cx0, cy0);
-    this.p1 = new Point(cx1, cy1);
+  constructor(lx0, ly0, lx1, ly1, lineWidth, strokeStyle) {
+    this.p0 = new Point(lx0, ly0);
+    this.p1 = new Point(lx1, ly1);
     this.lineWidth = lineWidth;
     this.strokeStyle = strokeStyle;
     this.zindex = 0;
   }
 
   draw(ctx, chart) {
+    const [cx0, cy0] = chart.toCanvasXY(this.p0.x, this.p0.y);
+    const [cx1, cy1] = chart.toCanvasXY(this.p1.x, this.p1.y);
     const offset = 0; // this.lineWidth / 2;
     ctx.strokeStyle = this.strokeStyle;
     ctx.lineWidth = this.lineWidth;
     ctx.beginPath();
-    ctx.moveTo(this.p0.x + offset, this.p0.y + offset);
-    ctx.lineTo(this.p1.x + offset, this.p1.y + offset);
+    ctx.moveTo(cx0 + offset, cy0 + offset);
+    ctx.lineTo(cx1 + offset, cy1 + offset);
     ctx.stroke();
   }
 };
 
 class Circle {
-  constructor(lx, ly, r, fillStyle, strokeStyle, props) {
+  constructor(lx, ly, r, primaryStyle, fill, props) {
     this.lx = lx;
     this.ly = ly;
     this.r = r; // phisical
-    this.fillStyle = fillStyle;
-    this.strokeStyle = strokeStyle;
+    this.primaryStyle = primaryStyle;
+    this.fill = fill;
     this.isMouseOn = false;
     this.props = props;
+    this.lineWidth = 2;
     this.zindex = 2;
   }
 
@@ -71,21 +72,15 @@ class Circle {
   draw(ctx, chart) {
     const [x, y] = chart.toCanvasXY(this.lx, this.ly);
     const r = this.r;
-    if (this.strokeStyle) {
-      ctx.fillStyle = this.strokeStyle;
-      // ctx.lineWidth = 2;
-      ctx.beginPath();
-      ctx.arc(x, y, r, 0, Math.PI * 2);
-      ctx.fill();
 
-      ctx.fillStyle = this.fillStyle;
+    ctx.fillStyle = this.primaryStyle;
+    ctx.beginPath();
+    ctx.arc(x, y, r, 0, Math.PI * 2);
+    ctx.fill();
+    if (!this.fill) {
+      ctx.fillStyle = "rgb(255, 255, 255)";
       ctx.beginPath();
-      ctx.arc(x, y, r - 2, 0, Math.PI * 2);
-      ctx.fill();
-    } else {
-      ctx.fillStyle = this.fillStyle;
-      ctx.beginPath();
-      ctx.arc(x, y, r, 0, Math.PI * 2);
+      ctx.arc(x, y, r - this.lineWidth, 0, Math.PI * 2);
       ctx.fill();
     }
   }
@@ -188,24 +183,21 @@ function addScoreSeries(chart, playbyplay, teamTricode, style) {
   actionsWithShotResults.forEach(action => {
     if (action["shotResult"] && action["teamTricode"] === teamTricode) {
       const made = action["shotResult"] === "Made";
-      let strokeStyle = style;
       let radius = SCORE_RADIUS;
+      let fill = false;
       if (action["shotResult"] === "Made") {
         score += POINTS_BY_ACTION[action["actionType"]];
-        strokeStyle = null;
         radius = SCORE_RADIUS;
+        fill = true;
       }
       const elapsed = getElapsed(action);
-      const x = chart.getX(elapsed);
-      const y = chart.getY(score);
-      const fillStyle = made ? style : "rgb(255, 255, 255)";
 
       const [x0, y0] = last_score;
       const [x1, y1] = [elapsed, score];
-      chart.addObject(new Line(chart, x0, y0, x1, y0, 2, style));
-      chart.addObject(new Line(chart, x1, y0, x1, y1, 2, style));
+      chart.addObject(new Line(x0, y0, x1, y0, 2, style));
+      chart.addObject(new Line(x1, y0, x1, y1, 2, style));
 
-      const circle = new Circle(elapsed, score, radius, fillStyle, strokeStyle, action);
+      const circle = new Circle(elapsed, score, radius, style, fill, action);
       series.push(circle);
       chart.addObject(circle);
 
@@ -425,6 +417,7 @@ function addBoxscore(chart, drawFunc, boxscore) {
       series.forEach(obj => {
         if (obj.props["personId"] == 1630162) {
           obj.r = SCORE_RADIUS + 2;
+          // obj.fillStyle = "rgb(255, 195, 0)";
         }
       });
     });
@@ -447,15 +440,15 @@ function addBoxscore(chart, drawFunc, boxscore) {
 
 function makeActionDialog() {
   const root = document.createElement("div");
-  const img = document.createElement("img");
+  root.className = "p-1 absolute z-10 border-solid border border-black shadow-xl bg-white invisible";
 
   const description = document.createTextNode("");
   root.appendChild(description);
-  root.appendChild(img);
 
-  root.className = "p-1 absolute z-10 border-solid border border-black shadow-xl bg-white invisible";
+  const img = document.createElement("img");
   img.width = 26 * 3;
   img.height = 16 * 3;
+  root.appendChild(img);
 
   const obj = {
     root: root,
