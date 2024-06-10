@@ -40,7 +40,7 @@ class Line {
   }
 
   draw(ctx) {
-    const offset = 0; this.lineWidth / 2;
+    const offset = 0; // this.lineWidth / 2;
     ctx.strokeStyle = this.strokeStyle;
     ctx.lineWidth = this.lineWidth;
     ctx.beginPath();
@@ -64,6 +64,27 @@ class Circle {
   isin(px, py) {
     const d = (this.px - px) * (this.px - px) + (this.py - py) * (this.py - py);
     return d < this.r * this.r;
+  }
+
+  draw(ctx) {
+    const [x, y, r] = [this.px, this.py, this.r];
+    if (this.strokeStyle) {
+      ctx.fillStyle = this.strokeStyle;
+      // ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.arc(x, y, r, 0, Math.PI * 2);
+      ctx.fill();
+
+      ctx.fillStyle = this.fillStyle;
+      ctx.beginPath();
+      ctx.arc(x, y, r - 2, 0, Math.PI * 2);
+      ctx.fill();
+    } else {
+      ctx.fillStyle = this.fillStyle;
+      ctx.beginPath();
+      ctx.arc(x, y, r, 0, Math.PI * 2);
+      ctx.fill();
+    }
   }
 }
 
@@ -160,7 +181,7 @@ function addScoreSeries(chart, playbyplay, teamTricode, style) {
   const series = []
 
   let score = 0;
-  let last_score = null;
+  let last_score = [0, 0];
   actionsWithShotResults.forEach(action => {
     if (action["shotResult"] && action["teamTricode"] === teamTricode) {
       const made = action["shotResult"] === "Made";
@@ -178,12 +199,10 @@ function addScoreSeries(chart, playbyplay, teamTricode, style) {
 
       series.push(new Circle(x, y, radius, fillStyle, strokeStyle, action));
 
-      if (last_score) {
-        const [x0, y0] = last_score;
-        const [x1, y1] = [elapsed, score];
-        chart.addObject(new Line(chart, x0, y0, x1, y0, 2, strokeStyle));
-        chart.addObject(new Line(chart, x1, y0, x1, y1, 2, strokeStyle));
-      }
+      const [x0, y0] = last_score;
+      const [x1, y1] = [elapsed, score];
+      chart.addObject(new Line(chart, x0, y0, x1, y0, 2, style));
+      chart.addObject(new Line(chart, x1, y0, x1, y1, 2, style));
 
 
       last_score = [elapsed, score];
@@ -196,58 +215,8 @@ function addScoreSeries(chart, playbyplay, teamTricode, style) {
 function drawPoints(chart, ctx, series, strokeStyle) {
   ctx.strokeStyle = strokeStyle;
 
-  let last_score = [chart.getX(0), chart.getY(0)];
   series.forEach(obj => {
-    if (obj.props["shotResult"] !== "Made")
-      return;
-
-    const [x0, y0] = last_score;
-    /*
-    chart.drawLineP(ctx, x0, y0, obj.px, y0, 2);
-    chart.drawLineP(ctx, obj.px, y0, obj.px, obj.py, 2);
-    */
-    const [lx0, ly0] = chart.toLogical(x0, y0);
-    const [lx1, ly1] = chart.toLogical(obj.px, obj.py);
-    const lineWidth = 2;
-    const line0 = new Line(chart, lx0, ly0, lx1, ly0, lineWidth, strokeStyle);
-    const line1 = new Line(chart, lx1, ly0, lx1, ly1, lineWidth, strokeStyle);
-    //line0.draw(ctx);
-    //line1.draw(ctx);
-
-    last_score = [obj.px, obj.py];
-  });
-
-  /*
-  {
-    const [x0, y0] = last_score;
-    const x1 = chart.getX(chart.maxX);
-    chart.drawLineP(ctx, x0, y0, x1, y0, 2);
-  }
-  */
-
-  series.forEach(obj => {
-    const x = obj.px;
-    const y = obj.py;
-    const r = obj.r;
-
-    if (obj.strokeStyle) {
-      ctx.fillStyle = obj.strokeStyle;
-      // ctx.lineWidth = 2;
-      ctx.beginPath();
-      ctx.arc(x, y, r, 0, Math.PI * 2);
-      ctx.fill();
-
-      ctx.fillStyle = obj.fillStyle;
-      ctx.beginPath();
-      ctx.arc(x, y, r - 2, 0, Math.PI * 2);
-      ctx.fill();
-    } else {
-      ctx.fillStyle = obj.fillStyle;
-      ctx.beginPath();
-      ctx.arc(x, y, r, 0, Math.PI * 2);
-      ctx.fill();
-
-    }
+    obj.draw(ctx);
   });
 }
 
