@@ -37,9 +37,10 @@ class Line {
     this.p1 = new Point(cx1, cy1);
     this.lineWidth = lineWidth;
     this.strokeStyle = strokeStyle;
+    this.zindex = 0;
   }
 
-  draw(ctx) {
+  draw(ctx, chart) {
     const offset = 0; // this.lineWidth / 2;
     ctx.strokeStyle = this.strokeStyle;
     ctx.lineWidth = this.lineWidth;
@@ -59,6 +60,7 @@ class Circle {
     this.strokeStyle = strokeStyle;
     this.isMouseOn = false;
     this.props = props;
+    this.zindex = 2;
   }
 
   isin(px, py) {
@@ -66,7 +68,7 @@ class Circle {
     return d < this.r * this.r;
   }
 
-  draw(ctx) {
+  draw(ctx, chart) {
     const [x, y, r] = [this.px, this.py, this.r];
     if (this.strokeStyle) {
       ctx.fillStyle = this.strokeStyle;
@@ -197,13 +199,14 @@ function addScoreSeries(chart, playbyplay, teamTricode, style) {
       const y = chart.getY(score);
       const fillStyle = made ? style : "rgb(255, 255, 255)";
 
-      series.push(new Circle(x, y, radius, fillStyle, strokeStyle, action));
-
       const [x0, y0] = last_score;
       const [x1, y1] = [elapsed, score];
       chart.addObject(new Line(chart, x0, y0, x1, y0, 2, style));
       chart.addObject(new Line(chart, x1, y0, x1, y1, 2, style));
 
+      const circle = new Circle(x, y, radius, fillStyle, strokeStyle, action);
+      series.push(circle);
+      chart.addObject(circle);
 
       last_score = [elapsed, score];
     }
@@ -212,15 +215,7 @@ function addScoreSeries(chart, playbyplay, teamTricode, style) {
   chart.addSeries(series);
 }
 
-function drawPoints(chart, ctx, series, strokeStyle) {
-  ctx.strokeStyle = strokeStyle;
-
-  series.forEach(obj => {
-    obj.draw(ctx);
-  });
-}
-
-function draw(ctx, chart, playbyplay, boxscore, guide) {
+function draw(ctx, chart, boxscore, guide) {
   // console.log("draw");
   const lastPeriod = boxscore["game"]["period"];
   const ytick = 20;
@@ -328,10 +323,8 @@ function draw(ctx, chart, playbyplay, boxscore, guide) {
     }
   }
 
-  chart.objects.forEach(obj => obj.draw(ctx));
-
-  drawPoints(chart, ctx, chart.series[0], STROKE_STYLE_AWAY)
-  drawPoints(chart, ctx, chart.series[1], STROKE_STYLE_HOME)
+  chart.objects.sort((a, b) => a.zindex - b.zindex);
+  chart.objects.forEach(obj => obj.draw(ctx, chart));
 }
 
 
@@ -451,14 +444,12 @@ function addBoxscore(chart, drawFunc, boxscore) {
 function makeActionDialog() {
   const root = document.createElement("div");
   const img = document.createElement("img");
-  root.appendChild(img);
 
   const description = document.createTextNode("");
   root.appendChild(description);
+  root.appendChild(img);
 
-  const baseClass = "absolute z-10 border-solid border border-black shadow-xl bg-white"
-
-  root.className = baseClass + " invisible";
+  root.className = "p-1 absolute z-10 border-solid border border-black shadow-xl bg-white invisible";
   img.width = 26 * 3;
   img.height = 16 * 3;
 
@@ -526,7 +517,7 @@ function initChart(playbyplay, boxscore, actionDialog, canvas, ctx) {
 
   canvas.addEventListener("mouseleave", (e) => {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
-    draw(ctx, chart, playbyplay, boxscore, null);
+    draw(ctx, chart, boxscore, null);
   });
 
   const onMouseLeave = (obj, e) => {
@@ -551,16 +542,14 @@ function initChart(playbyplay, boxscore, actionDialog, canvas, ctx) {
 
       let objOnMouse = null;
 
-      chart.series.forEach(series => {
-        series.forEach(obj => {
-          if (obj.isin(x, y)) {
-            objOnMouse = obj;
-          } else if (obj.isMouseOn) {
-            obj.isMouseOn = false;
-            onMouseLeave(obj, e);
-          }
-        })
-      })
+      chart.objects.forEach(obj => {
+        if (obj.isin && obj.isin(x, y)) {
+          objOnMouse = obj;
+        } else if (obj.isMouseOn) {
+          obj.isMouseOn = false;
+          onMouseLeave(obj, e);
+        }
+      });
 
       if (objOnMouse) {
         const obj = objOnMouse;
@@ -569,7 +558,7 @@ function initChart(playbyplay, boxscore, actionDialog, canvas, ctx) {
       }
     }
 
-    draw(ctx, chart, playbyplay, boxscore, guide);
+    draw(ctx, chart, boxscore, guide);
     // console.log("mousemove done")
   });
 
@@ -578,12 +567,12 @@ function initChart(playbyplay, boxscore, actionDialog, canvas, ctx) {
       families: [FONT_FAMILY],
     },
     active: function() {
-      draw(ctx, chart, playbyplay, boxscore);
+      draw(ctx, chart, boxscore);
     },
   });
 
 
-  addBoxscore(chart, () => { draw(ctx, chart, playbyplay, boxscore); }, boxscore);
+  addBoxscore(chart, () => { draw(ctx, chart, boxscore); }, boxscore);
 }
 
 function init(playbyplay, boxscore) {
