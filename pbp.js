@@ -52,9 +52,9 @@ class Line {
 };
 
 class Circle {
-  constructor(px, py, r, fillStyle, strokeStyle, props) {
-    this.px = px;
-    this.py = py;
+  constructor(lx, ly, r, fillStyle, strokeStyle, props) {
+    this.lx = lx;
+    this.ly = ly;
     this.r = r; // phisical
     this.fillStyle = fillStyle;
     this.strokeStyle = strokeStyle;
@@ -63,13 +63,13 @@ class Circle {
     this.zindex = 2;
   }
 
-  isin(px, py) {
-    const d = (this.px - px) * (this.px - px) + (this.py - py) * (this.py - py);
+  isin(lx, ly) {
+    const d = (this.lx - lx) * (this.lx - lx) + (this.ly - ly) * (this.ly - ly);
     return d < this.r * this.r;
   }
 
   draw(ctx, chart) {
-    const [x, y] = chart.toCanvasXY(this.px, this.py);
+    const [x, y] = chart.toCanvasXY(this.lx, this.ly);
     const r = this.r;
     if (this.strokeStyle) {
       ctx.fillStyle = this.strokeStyle;
@@ -296,18 +296,18 @@ function draw(ctx, chart, boxscore, guide) {
     ctx.fillText(`${min}:${sec}`, cx, chart.getY(0) + 4);
 
     // score difference
-    const obj0 = chart.series[0].findLast(obj => obj.px <= seconds);
-    const obj1 = chart.series[1].findLast(obj => obj.px <= seconds);
+    const obj0 = chart.series[0].findLast(obj => obj.lx <= seconds);
+    const obj1 = chart.series[1].findLast(obj => obj.lx <= seconds);
 
     let diff = 0, ly0, ly1;
     let latest = null;
     if (obj0 && obj1) {
-      latest = obj0.px > obj1.px ? obj0 : obj1;
-      ly0 = obj0.py;
-      ly1 = obj1.py;
+      latest = obj0.lx > obj1.lx ? obj0 : obj1;
+      ly0 = obj0.ly;
+      ly1 = obj1.ly;
     } else if (obj0 || obj1) {
       latest = obj0 ? obj0 : obj1;
-      ly0 = latest.py;
+      ly0 = latest.ly;
       ly1 = chart.getY(0);
     }
 
@@ -537,12 +537,12 @@ function initChart(playbyplay, boxscore, actionDialog, canvas, ctx) {
 
   canvas.addEventListener("mousemove", (e) => {
     // console.log("mousemove")
-    const [x, y] = [e.offsetX, e.offsetY];
-    const [lx, ly] = chart.toLogical(x, y);
+    const [cx, cy] = [e.offsetX, e.offsetY];
+    const [lx, ly] = chart.toLogical(cx, cy);
     // console.log(x, y);
     let guide = null;
     ctx.clearRect(0, 0, canvas.width, canvas.height);
-    if (chart.isin(x, y)) {
+    if (chart.isin(cx, cy)) {
       guide = [lx, ly];
 
       let objOnMouse = null;
