@@ -268,6 +268,7 @@ function makeBoxscoreElement(team, color) {
   table.append(caption, thead, tbody)
 
   const root = document.createElement("div");
+  root.className = "p-2";
   root.append(table);
   return root;
 }
@@ -303,11 +304,11 @@ function addBoxscore(chart, drawFunc, boxscore, pos, color) {
 
   const ob = new ResizeObserver((e) => {
     if (pos == "top-left") {
-      elem.style.top = "55px";
-      elem.style.left = "55px";
+      elem.style.top = `${chart.y0}px`;
+      elem.style.left = `${chart.x0}px`;
     } else {
-      elem.style.top = `${chart.height - elem.clientHeight + 45}px`;
-      elem.style.left = `${chart.width - elem.clientWidth + 45}px`;
+      elem.style.top = `${chart.y0 + chart.height - elem.clientHeight}px`;
+      elem.style.left = `${chart.x0 + chart.width - elem.clientWidth}px`;
     }
   });
   ob.observe(elem);
@@ -371,7 +372,6 @@ function initChart(playbyplay, boxscore, actionDialog, canvas, ctx) {
 
   const maxScore = getMaxScore(playbyplay)
   const maxX = 4 * SECONDS_IN_REGULAR_PERIOD + (lastPeriod - 4) * SECONDS_IN_OVERTIME_PREIOD;
-  // const maxY = Math.max(maxScore, 120)
   const maxY = Math.ceil(maxScore / 20) * 20;
 
   const chart = new Chart(chart_x0, chart_y0, chart_width, chart_height, maxX, maxY)
