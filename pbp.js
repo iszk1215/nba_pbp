@@ -90,6 +90,65 @@ function addScoreSeries(chart, playbyplay, teamTricode, style) {
   chart.addSeries(series);
 }
 
+function drawGuide(ctx, chart, guide) {
+  const [cx, cy] = chart.toCanvasXY(guide[0], guide[1]);
+  const [seconds, score] = guide;
+  ctx.strokeStyle = STROKE_STYLE_GRID;
+  chart.drawLineP(ctx, cx, chart.y0, cx, chart.y0 + chart.height);
+
+  let clock;
+  let seconds_in_period = seconds;
+  if (seconds < SECONDS_IN_REGULAR_PERIOD * 4) {
+    while (seconds_in_period > SECONDS_IN_REGULAR_PERIOD) {
+      seconds_in_period -= SECONDS_IN_REGULAR_PERIOD;
+    }
+    clock = SECONDS_IN_REGULAR_PERIOD - seconds_in_period;
+  } else {
+    seconds_in_period -= SECONDS_IN_REGULAR_PERIOD * 4;
+    while (seconds_in_period > SECONDS_IN_OVERTIME_PREIOD) {
+      seconds_in_period -= SECONDS_IN_OVERTIME_PREIOD;
+    }
+    clock = SECONDS_IN_OVERTIME_PREIOD - seconds_in_period;
+  }
+  const min = String(parseInt(clock / 60)).padStart(2, "0");
+  const sec = String(parseInt(clock - 60 * min)).padStart(2, "0");
+
+  ctx.textAlign = "center";
+  ctx.textBaseline = "top";
+  ctx.fillText(`${min}:${sec}`, cx, chart.getY(0) + 4);
+
+  // score difference
+  const obj0 = chart.series[0].findLast(obj => obj.lx <= seconds);
+  const obj1 = chart.series[1].findLast(obj => obj.lx <= seconds);
+
+  let diff = 0, ly0, ly1;
+  let latest = null;
+  if (obj0 && obj1) {
+    latest = obj0.lx > obj1.lx ? obj0 : obj1;
+    ly0 = obj0.ly;
+    ly1 = obj1.ly;
+  } else if (obj0 || obj1) {
+    latest = obj0 ? obj0 : obj1;
+    ly0 = latest.ly;
+    ly1 = chart.getY(0);
+  }
+
+  if (latest)
+    diff = Math.abs(latest.props["scoreHome"] - latest.props["scoreAway"])
+
+  if (diff > 0) {
+    const cy0 = chart.getY(ly0);
+    const cy1 = chart.getY(ly1);
+    ctx.beginPath();
+    ctx.lineWidth = 4;
+    chart.drawLineP(ctx, cx, cy0, cx, cy1, 4);
+    ctx.stroke()
+    ctx.textAlign = "right";
+    ctx.textBaseline = "middle";
+    ctx.fillText(`${diff}`, cx - 4, (cy0 + cy1) / 2);
+  }
+}
+
 function draw(ctx, chart, boxscore, guide) {
   // console.log("draw");
   const lastPeriod = boxscore["game"]["period"];
@@ -132,63 +191,7 @@ function draw(ctx, chart, boxscore, guide) {
 
   // guide
   if (guide) {
-    const [cx, cy] = chart.toCanvasXY(guide[0], guide[1]);
-    const [seconds, score] = guide;
-    // const [seconds, score] = chart.toLogical(x, y);
-    ctx.strokeStyle = STROKE_STYLE_GRID;
-    chart.drawLineP(ctx, cx, chart.y0, cx, chart.y0 + chart.height);
-
-    let clock;
-    let seconds_in_period = seconds;
-    if (seconds < SECONDS_IN_REGULAR_PERIOD * 4) {
-      while (seconds_in_period > SECONDS_IN_REGULAR_PERIOD) {
-        seconds_in_period -= SECONDS_IN_REGULAR_PERIOD;
-      }
-      clock = SECONDS_IN_REGULAR_PERIOD - seconds_in_period;
-    } else {
-      seconds_in_period -= SECONDS_IN_REGULAR_PERIOD * 4;
-      while (seconds_in_period > SECONDS_IN_OVERTIME_PREIOD) {
-        seconds_in_period -= SECONDS_IN_OVERTIME_PREIOD;
-      }
-      clock = SECONDS_IN_OVERTIME_PREIOD - seconds_in_period;
-    }
-    const min = String(parseInt(clock / 60)).padStart(2, "0");
-    const sec = String(parseInt(clock - 60 * min)).padStart(2, "0");
-
-    ctx.textAlign = "center";
-    ctx.textBaseline = "top";
-    ctx.fillText(`${min}:${sec}`, cx, chart.getY(0) + 4);
-
-    // score difference
-    const obj0 = chart.series[0].findLast(obj => obj.lx <= seconds);
-    const obj1 = chart.series[1].findLast(obj => obj.lx <= seconds);
-
-    let diff = 0, ly0, ly1;
-    let latest = null;
-    if (obj0 && obj1) {
-      latest = obj0.lx > obj1.lx ? obj0 : obj1;
-      ly0 = obj0.ly;
-      ly1 = obj1.ly;
-    } else if (obj0 || obj1) {
-      latest = obj0 ? obj0 : obj1;
-      ly0 = latest.ly;
-      ly1 = chart.getY(0);
-    }
-
-    if (latest)
-      diff = Math.abs(latest.props["scoreHome"] - latest.props["scoreAway"])
-
-    if (diff > 0) {
-      const cy0 = chart.getY(ly0);
-      const cy1 = chart.getY(ly1);
-      ctx.beginPath();
-      ctx.lineWidth = 4;
-      chart.drawLineP(ctx, cx, cy0, cx, cy1, 4);
-      ctx.stroke()
-      ctx.textAlign = "right";
-      ctx.textBaseline = "middle";
-      ctx.fillText(`${diff}`, cx - 4, (cy0 + cy1) / 2);
-    }
+    drawGuide(ctx, chart, guide);
   }
 
   chart.objects.sort((a, b) => a.zindex - b.zindex);
@@ -196,95 +199,84 @@ function draw(ctx, chart, boxscore, guide) {
 }
 
 
-function makeBoxscoreElement(boxscore) {
-  const root = document.createElement("div");
-  root.className = "bg-white";
+function makeBoxscoreElement(team, color) {
+  const headerColor = "bg-" + color;
+  const borderColor = "border-" + color;
 
   const makeTh = (text) => {
     const th = document.createElement("td");
-    th.className = "font-bold text-center";
+    th.className = "text-center";
     th.appendChild(document.createTextNode(text));
     return th;
   }
 
   const makeTd = (text, className) => {
     const td = document.createElement("td");
-    td.className = `before:content-['${text.replaceAll(" ", "_")}'] before:font-bold before:invisible before:block before:h-0`;
-    if (className)
-      td.className += " " + className;
-    // td.className += " border-y-2 border-transparent hover:border-y-2 hover:border-black";
+    td.className = `before:content-['${text.replaceAll(" ", "_")}'] `
+      + "before:font-bold before:invisible before:block before:h-0"
+      + (className ? " " + className : "");
     td.appendChild(document.createTextNode(text));
     return td;
   };
 
-  const team = boxscore["game"]["awayTeam"];
+  const caption = document.createElement("caption");
+  caption.className = "font-bold";
+  caption.append(document.createTextNode(team["teamName"]));
 
-  const border_colors = ["border-red-300", "border-blue-300", "border-green-300"];
+  const header = ["#", "PLAYER", "POS", "MIN", "FGM", "FGA", "FG%", "PTS", "REB", "AST", "TO"];
 
-  const table = document.createElement("table")
-  table.className = "table-auto border-2";
-  // table.className = "border-2 border-separate border-spacing-1 text-base";
-  // table.style = "border-color: #124D8A; background: #124D8A; color: white;";
-  // table.style = "border-color: #124D8A; background: #C8102A; color: white;";
+  const headTr = document.createElement("tr");
+  headTr.className = headerColor + " text-white";
+  headTr.append(...header.map(text => makeTh(text)));
 
   const thead = document.createElement("thead");
-  const tr = document.createElement("tr");
-  tr.append(makeTh("#"));
-  tr.append(makeTh("Name"));
-  tr.append(makeTh("MIN"));
-  tr.append(makeTh("FGM"));
-  tr.append(makeTh("FGA"));
-  tr.append(makeTh("FG%"));
-  tr.append(makeTh("PTS"));
-  thead.append(tr)
+  thead.append(headTr)
 
-  const caption = document.createElement("caption");
-  caption.append(document.createTextNode(boxscore["game"]["awayTeam"]["teamName"]));
-
-  table.append(caption)
-  table.append(thead);
-
+  const players = team["players"].filter(player => player["played"] != "0")
   const tbody = document.createElement("tbody");
-  team["players"].forEach((player, i) => {
-    if (player["played"] === "0")
-      return;
-
+  tbody.append(...players.map((player, i) => {
     const stats = player["statistics"];
     const fga = stats["fieldGoalsAttempted"];
     const fgm = stats["fieldGoalsMade"];
-    const fgp = (fgm / fga).toFixed(2) * 100;
+    const fgp = (fgm / fga * 100).toFixed(1);
+
+    const tdClass = "text-right px-1 font-mono";
 
     const tr = document.createElement("tr");
-    // tr.className = "hover:font-bold hover:border-2 hover:border-black border-2 " + border_colors[i % 3];
     tr.className = "hover:font-bold"
-    tr.append(makeTd(player["jerseyNum"], "text-right px-1 font-mono"));
-    tr.append(makeTd(player["nameI"], "px-1"));
-    tr.append(makeTd(player["statistics"]["minutes"].replace("PT", "").replace("M", ":").replace(/\..*/, ""), "text-right font-mono"));
-    tr.append(makeTd(fgm.toString(), "text-right px-1 font-mono"));
-    tr.append(makeTd(fga.toString(), "text-right px-1 font-mono"));
-    tr.append(makeTd(fgp.toString(), "text-right px-1 font-mono"));
-    tr.append(makeTd(player["statistics"]["points"].toString(), "text-right px-1 font-mono"));
+    tr.append(
+      makeTd(player["jerseyNum"], tdClass),
+      makeTd(player["nameI"], "px-1"),
+      makeTd(player["starter"] == "1" ? player["position"] : "", ""),
+      makeTd(
+        stats["minutes"].replace("PT", "").replace("M", ":").replace(/\..*/, ""),
+        tdClass),
+      makeTd(fgm.toString(), tdClass),
+      makeTd(fga.toString(), tdClass),
+      makeTd(fgp.toString(), tdClass),
+      makeTd(stats["points"].toString(), tdClass),
+      makeTd(stats["reboundsTotal"].toString(), tdClass),
+      makeTd(stats["assists"].toString(), tdClass),
+      makeTd(stats["turnovers"].toString(), tdClass),
+    );
 
-    tbody.append(tr);
-  });
-  table.append(tbody);
+    return tr;
+  }));
 
+  const table = document.createElement("table")
+  table.className = `table-auto border ${borderColor} bg-white`
+  table.append(caption, thead, tbody)
+
+  const root = document.createElement("div");
   root.append(table);
   return root;
 }
 
-function addBoxscore(chart, drawFunc, boxscore) {
-  const elem = makeBoxscoreElement(boxscore);
-
+function addBoxscore(chart, drawFunc, boxscore, pos, color) {
+  const elem = makeBoxscoreElement(boxscore, color);
   elem.classList.add("absolute");
-  // elem.classList.add("top-48");
-  // elem.classList.add("left-16");
-
-  elem.style.top = "70px";
-  elem.style.left = "64px";
 
   elem.addEventListener("mouseenter", (ev) => {
-    // console.log("mouseenter");
     chart.series.forEach(series => {
       series.forEach(obj => {
         if (obj.props["personId"] == 1630162) {
@@ -308,6 +300,17 @@ function addBoxscore(chart, drawFunc, boxscore) {
 
   const parentElement = document.getElementById("pbp-chart");
   parentElement.appendChild(elem);
+
+  const ob = new ResizeObserver((e) => {
+    if (pos == "top-left") {
+      elem.style.top = "55px";
+      elem.style.left = "55px";
+    } else {
+      elem.style.top = `${chart.height - elem.clientHeight + 45}px`;
+      elem.style.left = `${chart.width - elem.clientWidth + 45}px`;
+    }
+  });
+  ob.observe(elem);
 }
 
 function makeActionDialog() {
@@ -441,7 +444,11 @@ function initChart(playbyplay, boxscore, actionDialog, canvas, ctx) {
   });
 
 
-  addBoxscore(chart, () => { draw(ctx, chart, boxscore); }, boxscore);
+  const homeTeam = boxscore["game"]["homeTeam"];
+  const awayTeam = boxscore["game"]["awayTeam"];
+  const callback = () => { draw(ctx, chart, boxscore); };
+  addBoxscore(chart, callback, homeTeam, "top-left", "blue-800");
+  addBoxscore(chart, callback, awayTeam, "bottom-right", "rose-700");
 }
 
 function init(playbyplay, boxscore) {

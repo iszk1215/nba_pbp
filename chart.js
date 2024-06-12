@@ -87,17 +87,17 @@ export class Chart {
       && py >= this.y0 && py < this.y0 + this.height;
   }
 
-  toLogicalX(x) {
+  _toLogicalX(x) {
     return (x - this.x0) * this.maxX / this.width;
   }
 
-  toLogicalY(y) {
+  _toLogicalY(y) {
     // return parseInt((this.y0 + this.height - y) * this.maxY / this.height);
     return (this.y0 + this.height - y) * this.maxY / this.height;
   }
 
   toLogical(x, y) {
-    return [this.toLogicalX(x), this.toLogicalY(y)];
+    return [this._toLogicalX(x), this._toLogicalY(y)];
   }
 
   getX(x) {
