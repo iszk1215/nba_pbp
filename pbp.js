@@ -6,6 +6,7 @@
 // import _boxscore from "./0042300301_boxscore.json" with {type: "json"}
 import _playbypay from "./data/0042300312_playbyplay.json" with {type: "json"}
 import _boxscore from "./data/0042300312_boxscore.json" with {type: "json"}
+import { Line, Circle, Chart } from "./chart.js"
 
 const POINTS_BY_ACTION = {
   "freethrow": 1,
@@ -22,138 +23,6 @@ const STROKE_STYLE_GRID = "rgb(200, 200, 200)";
 const SCORE_RADIUS = 6;
 const FONT_FAMILY = "Roboto";
 
-class Point {
-  constructor(x, y) {
-    this.x = x;
-    this.y = y;
-  }
-};
-
-class Line {
-  constructor(lx0, ly0, lx1, ly1, lineWidth, strokeStyle) {
-    this.p0 = new Point(lx0, ly0);
-    this.p1 = new Point(lx1, ly1);
-    this.lineWidth = lineWidth;
-    this.strokeStyle = strokeStyle;
-    this.zindex = 0;
-  }
-
-  draw(ctx, chart) {
-    const [cx0, cy0] = chart.toCanvasXY(this.p0.x, this.p0.y);
-    const [cx1, cy1] = chart.toCanvasXY(this.p1.x, this.p1.y);
-    const offset = 0; // this.lineWidth / 2;
-    ctx.strokeStyle = this.strokeStyle;
-    ctx.lineWidth = this.lineWidth;
-    ctx.beginPath();
-    ctx.moveTo(cx0 + offset, cy0 + offset);
-    ctx.lineTo(cx1 + offset, cy1 + offset);
-    ctx.stroke();
-  }
-};
-
-class Circle {
-  constructor(lx, ly, r, primaryStyle, fill, props) {
-    this.lx = lx;
-    this.ly = ly;
-    this.r = r; // phisical
-    this.primaryStyle = primaryStyle;
-    this.fill = fill;
-    this.isMouseOn = false;
-    this.props = props;
-    this.lineWidth = 2;
-    this.zindex = 2;
-  }
-
-  isin(lx, ly) {
-    const d = (this.lx - lx) * (this.lx - lx) + (this.ly - ly) * (this.ly - ly);
-    return d < this.r * this.r;
-  }
-
-  draw(ctx, chart) {
-    const [x, y] = chart.toCanvasXY(this.lx, this.ly);
-    const r = this.r;
-
-    ctx.fillStyle = this.primaryStyle;
-    ctx.beginPath();
-    ctx.arc(x, y, r, 0, Math.PI * 2);
-    ctx.fill();
-    if (!this.fill) {
-      ctx.fillStyle = "rgb(255, 255, 255)";
-      ctx.beginPath();
-      ctx.arc(x, y, r - this.lineWidth, 0, Math.PI * 2);
-      ctx.fill();
-    }
-  }
-}
-
-class Chart {
-  constructor(x0, y0, width, height, maxX, maxY) {
-    this.x0 = x0;
-    this.y0 = y0;
-    this.width = width;
-    this.height = height;
-    this.maxX = maxX;
-    this.maxY = maxY;
-    this.series = [];
-    this.objects = [];
-  }
-
-  addObject(obj) {
-    this.objects.push(obj);
-  }
-
-  addSeries(series) {
-    this.series.push(series);
-  }
-
-  isin(px, py) {
-    return px >= this.x0 && px < this.x0 + this.width
-      && py >= this.y0 && py < this.y0 + this.height;
-  }
-
-  toLogicalX(x) {
-    return (x - this.x0) * this.maxX / this.width;
-  }
-
-  toLogicalY(y) {
-    // return parseInt((this.y0 + this.height - y) * this.maxY / this.height);
-    return (this.y0 + this.height - y) * this.maxY / this.height;
-  }
-
-  toLogical(x, y) {
-    return [this.toLogicalX(x), this.toLogicalY(y)];
-  }
-
-  getX(x) {
-    // return parseInt(this.x0 + this.width * x / this.maxX);
-    return this.x0 + this.width * x / this.maxX;
-  }
-
-  getY(y) {
-    // return parseInt(this.y0 + this.height - this.height * y / this.maxY);
-    return this.y0 + this.height - this.height * y / this.maxY;
-  }
-
-  toCanvasXY(x, y) {
-    return [this.getX(x), this.getY(y)]
-  }
-
-  drawLineP(ctx, x0, y0, x1, y1, lineWidth) {
-    const offset = 0; lineWidth / 2;
-    ctx.lineWidth = lineWidth;
-    ctx.beginPath();
-    ctx.moveTo(x0 + offset, y0 + offset);
-    ctx.lineTo(x1 + offset, y1 + offset);
-    ctx.stroke();
-  }
-
-  drawLine(ctx, x0, y0, x1, y1, lineWidth) {
-    const [cx0, cy0] = this.toCanvasXY(x0, y0);
-    const [cx1, cy1] = this.toCanvasXY(x1, y1);
-    this.drawLineP(ctx, cx0, cy0, cx1, cy1, lineWidth);
-  }
-} // class Chart
-
 function getElapsed(action) {
   const period = parseInt(action["period"])
   const clock = action["clock"];
@@ -166,6 +35,22 @@ function getElapsed(action) {
   } else { // overtime 
     return SECONDS_IN_REGULAR_PERIOD * 4 + SECONDS_IN_OVERTIME_PREIOD - clock_in_sec;
   }
+}
+
+function addAxis(chart, boxscore) {
+  const lastPeriod = boxscore["game"]["period"];
+  const ytick = 20;
+  const xtick = SECONDS_IN_REGULAR_PERIOD;
+
+  // grid
+  for (let y = 0; y <= chart.maxY; y += ytick)
+    chart.addObject(new Line(0, y, chart.maxX, y, 1, STROKE_STYLE_GRID));
+  for (let x = 0; x <= chart.maxX; x += xtick)
+    chart.addObject(new Line(x, 0, x, chart.maxY, 1, STROKE_STYLE_GRID));
+
+  // overtime
+  for (let x = SECONDS_IN_REGULAR_PERIOD * 4 + SECONDS_IN_OVERTIME_PREIOD; x <= chart.maxX; x += SECONDS_IN_OVERTIME_PREIOD)
+    chart.addObject(new Line(x, 0, x, chart.maxY, 1, STROKE_STYLE_GRID));
 }
 
 function addScoreSeries(chart, playbyplay, teamTricode, style) {
@@ -182,12 +67,9 @@ function addScoreSeries(chart, playbyplay, teamTricode, style) {
   let last_score = [0, 0];
   actionsWithShotResults.forEach(action => {
     if (action["shotResult"] && action["teamTricode"] === teamTricode) {
-      const made = action["shotResult"] === "Made";
-      let radius = SCORE_RADIUS;
       let fill = false;
       if (action["shotResult"] === "Made") {
         score += POINTS_BY_ACTION[action["actionType"]];
-        radius = SCORE_RADIUS;
         fill = true;
       }
       const elapsed = getElapsed(action);
@@ -197,7 +79,7 @@ function addScoreSeries(chart, playbyplay, teamTricode, style) {
       chart.addObject(new Line(x0, y0, x1, y0, 2, style));
       chart.addObject(new Line(x1, y0, x1, y1, 2, style));
 
-      const circle = new Circle(elapsed, score, radius, style, fill, action);
+      const circle = new Circle(elapsed, score, SCORE_RADIUS, style, fill, action);
       series.push(circle);
       chart.addObject(circle);
 
@@ -217,16 +99,6 @@ function draw(ctx, chart, boxscore, guide) {
   // ctx.clearRect(0, 0, chart.width, chart.height);
 
   ctx.strokeStyle = STROKE_STYLE_GRID;
-
-  // grid
-  for (let y = 0; y <= chart.maxY; y += ytick)
-    chart.drawLine(ctx, 0, y, chart.maxX, y, 1);
-  for (let x = 0; x <= chart.maxX; x += xtick)
-    chart.drawLine(ctx, x, 0, x, chart.maxY, 1);
-
-  // overtime
-  for (let x = SECONDS_IN_REGULAR_PERIOD * 4 + SECONDS_IN_OVERTIME_PREIOD; x <= chart.maxX; x += SECONDS_IN_OVERTIME_PREIOD)
-    chart.drawLine(ctx, x, 0, x, chart.maxY, 1);
 
   // axis label
   {
@@ -450,16 +322,10 @@ function makeActionDialog() {
   img.height = 16 * 3;
   root.appendChild(img);
 
-  const obj = {
+  const dialog = {
     root: root,
-    setDescription: (text) => {
-      description.nodeValue = text;
-    },
-    setImage: (src, x, y) => {
-      img.src = src
-      root.style.top = `${y}px`;
-      root.style.left = `${x}px`;
-    },
+    setDescription: (text) => { description.nodeValue = text; },
+    setImage: (src) => { img.src = src },
     setVisible: (flag) => {
       if (flag) {
         root.classList.remove("invisible");
@@ -469,14 +335,18 @@ function makeActionDialog() {
         root.classList.add("invisible");
       }
     },
-    setAction: (action, e) => {
+    setAction: (chart, obj, e) => {
+      const action = obj.props;
       const src = `https://cdn.nba.com/headshots/nba/latest/260x190/${action["personId"]}.png`;
-      obj.setDescription(action["description"]);
-      obj.setImage(src, e.screenX, e.screenY);
+      dialog.setDescription(action["description"]);
+      dialog.setImage(src);
+      const [x, y] = chart.toCanvasXY(obj.lx, obj.ly);
+      root.style.top = `${y + 10}px`;
+      root.style.left = `${x + 10}px`;
     },
   };
 
-  return obj;
+  return dialog;
 }
 
 function getMaxScore(playbyplay) {
@@ -506,6 +376,7 @@ function initChart(playbyplay, boxscore, actionDialog, canvas, ctx) {
   const teamTricodeAway = boxscore["game"]["awayTeam"]["teamTricode"]
   const teamTricodeHome = boxscore["game"]["homeTeam"]["teamTricode"]
 
+  addAxis(chart, boxscore);
   addScoreSeries(chart, playbyplay, teamTricodeAway, STROKE_STYLE_AWAY);
   addScoreSeries(chart, playbyplay, teamTricodeHome, STROKE_STYLE_HOME);
 
@@ -524,7 +395,7 @@ function initChart(playbyplay, boxscore, actionDialog, canvas, ctx) {
 
   const onMouseEnter = (obj, e) => {
     obj.r = SCORE_RADIUS + 2;
-    actionDialog.setAction(obj.props, e);
+    actionDialog.setAction(chart, obj, e);
     actionDialog.setVisible(true);
   };
 
