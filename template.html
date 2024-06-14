@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <script src="https://ajax.googleapis.com/ajax/libs/webfont/1.6.26/webfont.js"></script>
+    <!-- <link href="output.css" rel="stylesheet"> -->
+    <script src="https://cdn.tailwindcss.com"></script>
+  </head>
+  <body class="px-2">
+    <h1 class="text-sm font-serif">NBA Play-By-Play Chart</h1>
+    <div>
+      <b>{{ awayTeam.tricode }} {{ awayTeam.score }}</b> - <b>{{ homeTeam.tricode }} {{ homeTeam.score }}</b> {{ gameTime }}
+    </div>
+
+    <div class="flex">
+      <div id="pbp-chart" style="width: 1200px; height: 900px;">
+      </div>
+
+      <div class="relative overflow-auto text-sm" style="height: 900px;">
+        <table>
+          <thead class="sticky top-0 bg-white">
+            <tr>
+              <th></th>
+              <th class="text-left">clock</th>
+              <th>{{ awayTeam.tricode }}</th>
+              <th></th>
+              <th>{{ homeTeam.tricode }}</th>
+              <th>Team</th>
+              <th class="text-left">description</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for action in actions %}
+            <tr>
+              <td>{{ action["period"] }}Q</td>
+              <td class="font-mono">{{ action["clock2"] }}</td>
+              <td class="text-center">{{action["scoreAway"]}}</td>
+              <td class="text-center">-</td>
+              <td class="text-center">{{action["scoreHome"]}}</td>
+              <td>{{ action["teamTricode"] }}</td>
+              <td>{{ action["description"] }}</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </body>
+
+  <script type="module">
+    import { start } from "./pbp.js"
+    import _playbypay from "./data/{{ gameId }}_playbyplay.json" with {type: "json"}
+    import _boxscore from "./data/{{ gameId }}_boxscore.json" with {type: "json"}
+    start(_playbypay, _boxscore);
+  </script>
+</html>
