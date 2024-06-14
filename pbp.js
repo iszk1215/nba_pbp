@@ -5,7 +5,7 @@
 // import _playbypay from "./0042300301_playbyplay.json" with {type: "json"}
 // import _boxscore from "./0042300301_boxscore.json" with {type: "json"}
 import _playbypay from "./data/0042300312_playbyplay.json" with {type: "json"}
-import _boxscore from "./data/0042300312_boxscore.json" with {type: "json"}
+//import _boxscore from "./data/0042300312_boxscore.json" with {type: "json"}
 import { Line, Circle, Chart } from "./chart.js"
 
 const POINTS_BY_ACTION = {
@@ -199,7 +199,7 @@ function draw(ctx, chart, boxscore, guide) {
 }
 
 
-function makeBoxscoreElement(team, color) {
+function makeBoxscoreElement(team, color, mouseEnter, mouseLeave) {
   const headerColor = "bg-" + color;
   const borderColor = "border-" + color;
 
@@ -260,6 +260,9 @@ function makeBoxscoreElement(team, color) {
       makeTd(stats["turnovers"].toString(), tdClass),
     );
 
+    tr.addEventListener("mouseenter", () => { mouseEnter(player); });
+    tr.addEventListener("mouseleave", () => { mouseLeave(player); });
+
     return tr;
   }));
 
@@ -273,33 +276,45 @@ function makeBoxscoreElement(team, color) {
   return root;
 }
 
-function addBoxscore(chart, drawFunc, boxscore, pos, color) {
-  const elem = makeBoxscoreElement(boxscore, color);
-  elem.classList.add("absolute");
+function addBoxscore(parentElement, chart, drawFunc, boxscore, pos, color) {
+  let selectedPlayer = null;
 
-  elem.addEventListener("mouseenter", (ev) => {
+  const mouseEnter = (player) => {
+    // console.log("mouseEnter")
+    selectedPlayer = { "player": player, "color": null };
+
     chart.series.forEach(series => {
       series.forEach(obj => {
-        if (obj.props["personId"] == 1630162) {
+        if (obj.props["personId"] == player["personId"]) {
           obj.r = SCORE_RADIUS + 2;
-          // obj.fillStyle = "rgb(255, 195, 0)";
+          selectedPlayer.color = obj.primaryStyle;
+          // obj.primaryStyle = "rgb(255, 195, 0)";
+          obj.primaryStyle = "#93c5fd";
         }
       });
     });
     drawFunc();
-  });
+  };
 
-  elem.addEventListener("mouseleave", (ev) => {
-    //console.log("mouseleave");
+  const mouseLeave = (player) => {
+    // console.log("mouseLeave")
     chart.series.forEach(series => {
       series.forEach(obj => {
-        obj.r = SCORE_RADIUS;
+        if (obj.props["personId"] == selectedPlayer.player["personId"]) {
+          //console.log(selectedPlayer.color);
+          obj.r = SCORE_RADIUS;
+          obj.primaryStyle = selectedPlayer.color;
+        }
       });
     });
+    selectedPlayer = null;
     drawFunc();
-  });
+  };
 
-  const parentElement = document.getElementById("pbp-chart");
+  const elem = makeBoxscoreElement(boxscore, color, mouseEnter, mouseLeave);
+  elem.classList.add("absolute");
+
+  //const parentElement = document.getElementById("pbp-chart");
   parentElement.appendChild(elem);
 
   const ob = new ResizeObserver((e) => {
@@ -359,14 +374,11 @@ function getMaxScore(playbyplay) {
   return Math.max(last["scoreAway"], last["scoreHome"])
 }
 
-function initChart(playbyplay, boxscore, actionDialog, canvas, ctx) {
-  canvas.width = 1900;
-  canvas.height = 900;
-
+function initChart(root, playbyplay, boxscore, actionDialog, canvas, ctx) {
   const chart_x0 = 50;
-  const chart_y0 = 50;
-  const chart_width = 1200;
-  const chart_height = 800;
+  const chart_y0 = 20;
+  const chart_width = canvas.width - 60;
+  const chart_height = canvas.height - 100;
 
   const lastPeriod = boxscore["game"]["period"];
 
@@ -382,9 +394,6 @@ function initChart(playbyplay, boxscore, actionDialog, canvas, ctx) {
   addAxis(chart, boxscore);
   addScoreSeries(chart, playbyplay, teamTricodeAway, STROKE_STYLE_AWAY);
   addScoreSeries(chart, playbyplay, teamTricodeHome, STROKE_STYLE_HOME);
-
-  const headshots = {};
-  const imageLoaded = {};
 
   canvas.addEventListener("mouseleave", (e) => {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
@@ -446,9 +455,12 @@ function initChart(playbyplay, boxscore, actionDialog, canvas, ctx) {
 
   const homeTeam = boxscore["game"]["homeTeam"];
   const awayTeam = boxscore["game"]["awayTeam"];
-  const callback = () => { draw(ctx, chart, boxscore); };
-  addBoxscore(chart, callback, homeTeam, "top-left", "blue-800");
-  addBoxscore(chart, callback, awayTeam, "bottom-right", "rose-700");
+  const callback = () => {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    draw(ctx, chart, boxscore);
+  };
+  addBoxscore(root, chart, callback, homeTeam, "top-left", "blue-800");
+  addBoxscore(root, chart, callback, awayTeam, "bottom-right", "rose-700");
 }
 
 function init(playbyplay, boxscore) {
@@ -461,24 +473,37 @@ function init(playbyplay, boxscore) {
     return;
   }
 
-  const root = document.getElementById("pbp-chart");
+  const parentElement = document.getElementById("pbp-chart");
+  console.log(parentElement.clientWidth)
+  console.log(parentElement.clientHeight)
+
+  const width = parentElement.clientWidth;
+  const height = parentElement.clientHeight;
+
+  // const root = document.getElementById("pbp-chart");
+  const root = document.createElement("div");
   root.className = "relative border";
+  root.style.width = `${width}px`;
+  root.style.height = `${height}px`;
 
   const actionDialog = makeActionDialog();
   root.appendChild(actionDialog.root);
 
   const canvas = document.createElement("canvas");
   canvas.className = "absolute";
+  canvas.width = width;
+  canvas.height = height;
   root.appendChild(canvas);
 
   // const canvas = document.getElementById("pbp");
   if (canvas.getContext) {
     const ctx = canvas.getContext("2d");
-    initChart(playbyplay, boxscore, actionDialog, canvas, ctx);
+    initChart(root, playbyplay, boxscore, actionDialog, canvas, ctx);
   }
 
-  const box = document.getElementById("box");
-  // box.className = "hidden";
+  parentElement.append(root);
 }
 
-init(_playbypay, _boxscore)
+export function start(playbyplay, boxscore) {
+  init(playbyplay, boxscore);
+}
