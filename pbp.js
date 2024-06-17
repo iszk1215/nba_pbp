@@ -157,6 +157,9 @@ function draw(ctx, chart, boxscore, guide) {
 
   // ctx.clearRect(0, 0, chart.width, chart.height);
 
+  ctx.fillStyle = "#ffffff";
+  ctx.fillRect(chart.x0, chart.y0, chart.width, chart.height);
+
   ctx.strokeStyle = STROKE_STYLE_GRID;
 
   // axis label
@@ -199,7 +202,7 @@ function draw(ctx, chart, boxscore, guide) {
 }
 
 
-function makeBoxscoreElement(team, color, mouseEnter, mouseLeave) {
+function makeBoxscoreElement(team, color, tableColor, mouseEnter, mouseLeave) {
   const headerColor = "bg-" + color;
   const borderColor = "border-" + color;
 
@@ -230,6 +233,7 @@ function makeBoxscoreElement(team, color, mouseEnter, mouseLeave) {
   headTr.append(...header.map(text => makeTh(text)));
 
   const thead = document.createElement("thead");
+  thead.className = "font-bold text-sm";
   thead.append(headTr)
 
   const players = team["players"].filter(player => player["played"] != "0")
@@ -267,7 +271,7 @@ function makeBoxscoreElement(team, color, mouseEnter, mouseLeave) {
   }));
 
   const table = document.createElement("table")
-  table.className = `table-auto border ${borderColor} bg-white`
+  table.className = `table-auto border ${borderColor} ${tableColor}`
   table.append(caption, thead, tbody)
 
   const root = document.createElement("div");
@@ -276,7 +280,7 @@ function makeBoxscoreElement(team, color, mouseEnter, mouseLeave) {
   return root;
 }
 
-function addBoxscore(parentElement, chart, drawFunc, boxscore, pos, color) {
+function addBoxscore(parentElement, chart, drawFunc, boxscore, pos, color, tableColor) {
   let selectedPlayer = null;
 
   const mouseEnter = (player) => {
@@ -311,7 +315,7 @@ function addBoxscore(parentElement, chart, drawFunc, boxscore, pos, color) {
     drawFunc();
   };
 
-  const elem = makeBoxscoreElement(boxscore, color, mouseEnter, mouseLeave);
+  const elem = makeBoxscoreElement(boxscore, color, tableColor, mouseEnter, mouseLeave);
   elem.classList.add("absolute");
 
   //const parentElement = document.getElementById("pbp-chart");
@@ -459,8 +463,8 @@ function initChart(root, playbyplay, boxscore, actionDialog, canvas, ctx) {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     draw(ctx, chart, boxscore);
   };
-  addBoxscore(root, chart, callback, homeTeam, "top-left", "blue-800");
-  addBoxscore(root, chart, callback, awayTeam, "bottom-right", "rose-700");
+  addBoxscore(root, chart, callback, homeTeam, "top-left", "blue-800", "bg-blue-50");
+  addBoxscore(root, chart, callback, awayTeam, "bottom-right", "rose-700", "bg-rose-50");
 }
 
 function init(playbyplay, boxscore) {
@@ -482,7 +486,7 @@ function init(playbyplay, boxscore) {
 
   // const root = document.getElementById("pbp-chart");
   const root = document.createElement("div");
-  root.className = "relative border";
+  root.className = "relative";
   root.style.width = `${width}px`;
   root.style.height = `${height}px`;
 

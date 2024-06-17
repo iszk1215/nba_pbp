@@ -5,8 +5,11 @@
     <!-- <link href="output.css" rel="stylesheet"> -->
     <script src="https://cdn.tailwindcss.com"></script>
   </head>
-  <body class="px-2">
-    <h1 class="text-sm font-serif">NBA Play-By-Play Chart</h1>
+  <body class="bg-black">
+    <header class="bg-black">
+      <span class="text-sm font-bold text-white px-1">NBA Play-By-Play Chart</span>
+    </header>
+    <main class="px-2 bg-gray-50">
     <div>
       <b>{{ awayTeam.tricode }} {{ awayTeam.score }}</b> - <b>{{ homeTeam.tricode }} {{ homeTeam.score }}</b> {{ gameTime }}
     </div>
@@ -15,7 +18,7 @@
       <div id="pbp-chart" style="width: 1200px; height: 900px;">
       </div>
 
-      <div class="relative overflow-auto text-sm" style="height: 900px;">
+      <div class="relative overflow-auto text-sm" style="height: 800px;">
         <table>
           <thead class="sticky top-0 bg-white">
             <tr>
@@ -31,8 +34,8 @@
           <tbody>
             {% for action in actions %}
             <tr>
-              <td>{{ action["period"] }}Q</td>
-              <td class="font-mono">{{ action["clock2"] }}</td>
+              <td class="font-mono text-slate-700">Q{{ action["period"] }}</td>
+              <td class="font-mono pl-1">{{ action["clock2"] }}</td>
               <td class="text-center">{{action["scoreAway"]}}</td>
               <td class="text-center">-</td>
               <td class="text-center">{{action["scoreHome"]}}</td>
@@ -44,6 +47,7 @@
         </table>
       </div>
     </div>
+    </main>
   </body>
 
   <script type="module">
