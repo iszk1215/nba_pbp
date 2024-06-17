@@ -1,11 +1,3 @@
-// import _playbypay from "./0042300232.json" with {type: "json"}
-// import _playbypay from "./0042300224.json" with {type: "json"}
-// import _playbypay from "./0042300237_playbyplay.json" with {type: "json"}
-// import _boxscore from "./0042300237_boxscore.json" with {type: "json"}
-// import _playbypay from "./0042300301_playbyplay.json" with {type: "json"}
-// import _boxscore from "./0042300301_boxscore.json" with {type: "json"}
-import _playbypay from "./data/0042300312_playbyplay.json" with {type: "json"}
-//import _boxscore from "./data/0042300312_boxscore.json" with {type: "json"}
 import { Line, Circle, Chart } from "./chart.js"
 
 const POINTS_BY_ACTION = {
@@ -407,6 +399,9 @@ function initChart(root, playbyplay, boxscore, actionDialog, canvas, ctx) {
   const onMouseLeave = (obj, e) => {
     obj.r = SCORE_RADIUS;
     actionDialog.setVisible(false);
+    const elem = document.getElementById("action-" + obj.props["actionNumber"]);
+    console.log(elem);
+    elem.scrollIntoView();
   }
 
   const onMouseEnter = (obj, e) => {

@@ -33,7 +33,7 @@
           </thead>
           <tbody>
             {% for action in actions %}
-            <tr>
+            <tr id="action-{{ action["actionNumber"] }}">
               <td class="font-mono text-slate-700">Q{{ action["period"] }}</td>
               <td class="font-mono pl-1">{{ action["clock2"] }}</td>
               <td class="text-center">{{action["scoreAway"]}}</td>
