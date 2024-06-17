@@ -361,12 +361,7 @@ function makeActionDialog() {
     },
   };
 
-  // root.setAttribute("data-action", dialog);
-  root.hoge = dialog;
-
-  return root;
-
-  // return dialog;
+  return dialog;
 }
 
 function getMaxScore(playbyplay) {
@@ -403,12 +398,7 @@ function initChart(root, playbyplay, boxscore, actionDialog, canvas, ctx) {
 
   const onMouseLeave = (obj, e) => {
     obj.r = SCORE_RADIUS;
-    // const dialog = actionDialog.getAttribute("data-action");
-    // console.log(dialog);
-    // console.log(dialog.setVisible);
-    console.log(actionDialog.hoge);
-    // actionDialog.getAttribute("data-action").setVisible(false);
-    actionDialog.hoge.setVisible(false);
+    actionDialog.setVisible(false);
     const elem = document.getElementById("action-" + obj.props["actionNumber"]);
     console.log(elem);
     elem.scrollIntoView();
@@ -416,8 +406,8 @@ function initChart(root, playbyplay, boxscore, actionDialog, canvas, ctx) {
 
   const onMouseEnter = (obj, e) => {
     obj.r = SCORE_RADIUS + 2;
-    //actionDialog.setAction(chart, obj, e);
-    //actionDialog.setVisible(true);
+    actionDialog.setAction(chart, obj, e);
+    actionDialog.setVisible(true);
   };
 
   canvas.addEventListener("mousemove", (e) => {
@@ -496,8 +486,7 @@ function init(playbyplay, boxscore) {
   root.style.height = `${height}px`;
 
   const actionDialog = makeActionDialog();
-  // root.appendChild(actionDialog.root);
-  root.appendChild(actionDialog);
+  root.appendChild(actionDialog.root);
 
   const canvas = document.createElement("canvas");
   canvas.className = "absolute";
