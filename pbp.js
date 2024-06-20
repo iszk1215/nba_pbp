@@ -22,11 +22,13 @@ function getElapsed(action) {
   const sec = parseInt(clock[5]) * 10 + parseInt(clock[6]);
   const subsec = parseInt(clock[8]) * 0.1 + parseInt(clock[9]) * 0.01;
   const clock_in_sec = min * 60 + sec + subsec;
+
   if (period < 5) {
     return SECONDS_IN_REGULAR_PERIOD * (period - 1) + SECONDS_IN_REGULAR_PERIOD - clock_in_sec;
-  } else { // overtime 
-    return SECONDS_IN_REGULAR_PERIOD * 4 + SECONDS_IN_OVERTIME_PREIOD - clock_in_sec;
   }
+
+  // overtime 
+  return SECONDS_IN_REGULAR_PERIOD * 4 + SECONDS_IN_OVERTIME_PREIOD - clock_in_sec;
 }
 
 function addAxis(chart, boxscore) {
@@ -193,6 +195,15 @@ function draw(ctx, chart, boxscore, guide) {
   chart.objects.forEach(obj => obj.draw(ctx, chart));
 }
 
+
+function makeTd(text, className) {
+  const td = document.createElement("td");
+  td.className = `before:content-['${text.replaceAll(" ", "_")}'] `
+    + "before:font-bold before:invisible before:block before:h-0"
+    + (className ? " " + className : "");
+  td.appendChild(document.createTextNode(text));
+  return td;
+}
 
 function makeBoxscoreElement(team, color, tableColor, mouseEnter, mouseLeave) {
   const headerColor = "bg-" + color;
@@ -364,13 +375,145 @@ function makeActionDialog() {
   return dialog;
 }
 
+function makeActionList(playbyplay, homeTeam, awayTeam) {
+  const actions = playbyplay["game"]["actions"];
+  console.log(actions);
+
+  const getLogoURL = (teamId) => `https://cdn.nba.com/logos/nba/${teamId}/global/L/logo.svg`
+  const getHeadshotURL = (personId) => `https://cdn.nba.com/headshots/nba/latest/260x190/${personId}.png`;
+
+  const makeTeamTD = (action) => {
+    if ("teamId" in action) {
+      const img = document.createElement("img");
+      img.src = getLogoURL(action["teamId"]);
+      img.width = 24;
+      const td = document.createElement("td");
+      td.append(img);
+      return td;
+    }
+    return makeTd("")
+  };
+
+  const makeHeadshotTD = (action) => {
+    if (action["personId"]) {
+      const img = document.createElement("img");
+      img.src = getHeadshotURL(action["personId"]);
+      img.width = 26;
+      img.height = 16;
+
+      const td = document.createElement("td");
+      td.append(img);
+      return td;
+    }
+    return makeTd("");
+  };
+
+  const makeTdIf = (flag, fn) => {
+    if (flag)
+      return fn();
+    return makeTd("");
+  };
+
+  const rows = actions.map(action => {
+    const tr = document.createElement("tr");
+    const isMade = action["shotResult"] == "Made";
+    const isMadeHome = isMade && action["teamTricode"] == homeTeam["teamTricode"];
+    const isMadeAway = isMade && action["teamTricode"] == awayTeam["teamTricode"];
+    tr.append(
+      makeTd(`Q${action["period"]}`, "font-mono pr-1"),
+      makeTd(action["clock"]
+        .replace("PT", "").replace("M", ":").replace(/\..*/, ""),
+        "font-mono pr-1"),
+      makeTdIf(isMade, () => makeTd(
+        action["scoreAway"],
+        "text-center font-mono" + (isMadeAway ? " font-bold" : ""))),
+      makeTdIf(isMade, () => makeTd("-", "text-center font-mono")),
+      makeTdIf(isMade, () => makeTd(
+        action["scoreHome"],
+        "text-center font-mono" + (isMadeHome ? " font-bold" : ""))),
+      makeTeamTD(action),
+      makeHeadshotTD(action),
+      makeTd(action["description"]),
+    );
+    tr.id = `action-${action["actionNumber"]}`
+
+    const obj = {
+      tr: tr,
+      action: action,
+      elapsed: getElapsed(action),
+    };
+    return obj;
+  });
+
+  const tbody = document.createElement("tbody");
+  tbody.append(...rows.map(row => row.tr));
+  const table = document.createElement("table");
+  table.append(tbody);
+  const root = document.createElement("div")
+  root.append(table);
+  root.className = "relative overflow-auto text-base"
+  root.style.height = "800px" // FIXME
+
+  const findNearest = (elapsed) => {
+    let nearestRow = null;
+    let nearestShotResultRow = null;
+    let last_diff = null;
+    let last_diff_shot_result = null;
+    for (let row of rows) {
+      const d = Math.abs(elapsed - row.elapsed);
+      if (last_diff && d < last_diff)
+        nearestRow = row;
+
+      if (row.action["shotResult"]) {
+        if (last_diff_shot_result && d < last_diff_shot_result)
+          nearestShotResultRow = row;
+      }
+
+      if (last_diff && last_diff_shot_result && d > last_diff && d > last_diff_shot_result)
+        break;
+
+      last_diff = d;
+      if (row.action["shotResult"])
+        last_diff_shot_result = d;
+    }
+    console.assert(nearestRow, "nearestRow is not found");
+    console.assert(nearestShotResultRow, "nearestShotResultRow is not found");
+    return { row: nearestRow, shotResultRow: nearestShotResultRow };
+  };
+
+  const findNearestRow = (elapsed) => {
+    let diff = null;
+    let found = null;
+    for (let row of rows) {
+      found = row;
+      const d = elapsed - row.elapsed;
+      if (d < 0)
+        break;
+    }
+    return found;
+  };
+
+  const obj = {
+    root: root,
+    scrollIntoElapsed: (elapsed) => {
+      const row = findNearestRow(elapsed);
+      row.tr.scrollIntoView({ block: "center" });
+    },
+    scrollIntoRow: (row) => {
+      row.tr.scrollIntoView({ block: "center" });
+    },
+    findNearest: findNearest,
+  };
+  return obj;
+}
+
 function getMaxScore(playbyplay) {
   const actions = playbyplay["game"]["actions"]
   const last = actions[actions.length - 1]
   return Math.max(last["scoreAway"], last["scoreHome"])
 }
 
-function initChart(root, playbyplay, boxscore, actionDialog, canvas, ctx) {
+function initChart(root, playbyplay, boxscore, widgets, canvas, ctx) {
   const chart_x0 = 50;
   const chart_y0 = 20;
   const chart_width = canvas.width - 60;
@@ -398,48 +541,63 @@ function initChart(root, playbyplay, boxscore, actionDialog, canvas, ctx) {
 
   const onMouseLeave = (obj, e) => {
     obj.r = SCORE_RADIUS;
-    actionDialog.setVisible(false);
-    const elem = document.getElementById("action-" + obj.props["actionNumber"]);
-    console.log(elem);
-    elem.scrollIntoView();
+    widgets.actionDialog.setVisible(false);
   }
 
   const onMouseEnter = (obj, e) => {
     obj.r = SCORE_RADIUS + 2;
-    actionDialog.setAction(chart, obj, e);
-    actionDialog.setVisible(true);
+    widgets.actionDialog.setAction(chart, obj, e);
+    widgets.actionDialog.setVisible(true);
   };
+
+  const onMouseMove = (e) => {
+    const [cx, cy] = [e.offsetX, e.offsetY];
+    // const [lx, ly] = chart.toLogical(cx, cy);
+
+    let minDistance = cx;
+    let nearestCircle = null;
+
+    chart.objects.forEach(obj => {
+      if (obj.isin) { // FIXME: if circle
+        const d = Math.abs(cx - chart.getX(obj.lx));
+        if (d < obj.r && d < minDistance) {
+          minDistance = d;
+          nearestCircle = obj;
+        }
+      }
+    });
+
+    chart.objects.forEach(obj => {
+      if (obj != nearestCircle && obj.isMouseOn) {
+        obj.isMouseOn = false;
+        onMouseLeave(obj, e);
+      }
+    });
+
+    if (nearestCircle) {
+      nearestCircle.isMouseOn = true;
+      onMouseEnter(nearestCircle, e);
+    }
+  }
 
   canvas.addEventListener("mousemove", (e) => {
     // console.log("mousemove")
     const [cx, cy] = [e.offsetX, e.offsetY];
     const [lx, ly] = chart.toLogical(cx, cy);
+
     // console.log(x, y);
     let guide = null;
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
     if (chart.isin(cx, cy)) {
       guide = [lx, ly];
-
-      let objOnMouse = null;
-
-      chart.objects.forEach(obj => {
-        if (obj.isin && obj.isin(lx, ly)) {
-          objOnMouse = obj;
-        } else if (obj.isMouseOn) {
-          obj.isMouseOn = false;
-          onMouseLeave(obj, e);
-        }
-      });
-
-      if (objOnMouse) {
-        const obj = objOnMouse;
-        obj.isMouseOn = true;
-        onMouseEnter(obj, e);
-      }
+      onMouseMove(e)
     }
 
+    const nearest = widgets.actionList.findNearest(lx);
+    const diff = Math.abs(nearest.shotResultRow.elapsed - lx);
+    widgets.actionList.scrollIntoRow(nearest.row);
+
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
     draw(ctx, chart, boxscore, guide);
-    // console.log("mousemove done")
   });
 
   WebFont.load({
@@ -472,6 +630,9 @@ function init(playbyplay, boxscore) {
     return;
   }
 
+  const homeTeam = boxscore["game"]["homeTeam"];
+  const awayTeam = boxscore["game"]["awayTeam"];
+
   const parentElement = document.getElementById("pbp-chart");
   console.log(parentElement.clientWidth)
   console.log(parentElement.clientHeight)
@@ -488,16 +649,25 @@ function init(playbyplay, boxscore) {
   const actionDialog = makeActionDialog();
   root.appendChild(actionDialog.root);
 
+  const actionList = makeActionList(playbyplay, homeTeam, awayTeam);
+  const tmp = parentElement.parentElement;
+  tmp.appendChild(actionList.root);
+
   const canvas = document.createElement("canvas");
   canvas.className = "absolute";
   canvas.width = width;
   canvas.height = height;
   root.appendChild(canvas);
 
+  const widgets = {
+    actionDialog: actionDialog,
+    actionList: actionList,
+  };
+
   // const canvas = document.getElementById("pbp");
   if (canvas.getContext) {
     const ctx = canvas.getContext("2d");
-    initChart(root, playbyplay, boxscore, actionDialog, canvas, ctx);
+    initChart(root, playbyplay, boxscore, widgets, canvas, ctx);
   }
 
   parentElement.append(root);
