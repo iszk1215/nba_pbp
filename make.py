@@ -24,17 +24,6 @@ def make_play_by_play(args, pbp, boxscore):
     print(dt.strftime("%a %b %d"))
 
     actions = pbp["game"]["actions"]
-    for a in actions:
-        a["clock2"] = a["clock"].replace("PT", "").replace("M", ".")[:-4]
-    # for action in actions:
-    #     if "teamTricode" in action:
-    #         print(
-    #             f"{action['clock']} {action['scoreAway']}-{action['scoreHome']} {action['teamTricode']} {action['description']}"
-    #         )
-    #     else:
-    #         print(
-    #             f"{action['clock']} {action['scoreAway']}-{action['scoreHome']} {action['description']}"
-    #         )
 
     if args.output is not None:
         with open(args.output, "w") as f:

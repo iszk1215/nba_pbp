@@ -1,4 +1,4 @@
-class Point {
+export class Point {
   constructor(x, y) {
     this.x = x;
     this.y = y;
@@ -12,9 +12,24 @@ export class Line {
     this.lineWidth = lineWidth;
     this.strokeStyle = strokeStyle;
     this.zindex = 0;
+    this.visible = true;
+  }
+
+  setVisible(visible) {
+    this.visible = visible;
+  }
+
+  moveTo(lx0, ly0, lx1, ly1) {
+    this.p0.x = lx0;
+    this.p0.y = ly0;
+    this.p1.x = lx1;
+    this.p1.y = ly1;
   }
 
   draw(ctx, chart) {
+    if (!this.visible)
+      return;
+
     const [cx0, cy0] = chart.toCanvasXY(this.p0.x, this.p0.y);
     const [cx1, cy1] = chart.toCanvasXY(this.p1.x, this.p1.y);
     const offset = 0; // this.lineWidth / 2;
@@ -62,6 +77,42 @@ export class Circle {
   }
 }
 
+export class Text {
+  constructor(config) {
+    this.config = config;
+    this.config.visible = config.visible || true;
+    this.config.style = config.style || "rgb(100, 100, 100)"; // TODO
+  }
+
+  moveTo(x, y) {
+    this.config.x = x;
+    this.config.y = y;
+  }
+
+  setText(text) {
+    this.config.text = text;
+  }
+
+  setVisible(visible) {
+    this.config.visible = visible;
+  }
+
+  draw(ctx, chart) {
+    const conf = this.config;
+    if (!conf.visible)
+      return;
+
+    let [x, y] = chart.toCanvasXY(conf.x, conf.y);
+    x += conf.offsetX || 0;
+    y += conf.offsetY || 0;
+
+    ctx.fillStyle = conf.style || ctx.fillStyle;
+    ctx.textAlign = conf.textAlign || "start";
+    ctx.textBaseline = conf.textBaseline || "alphabetic";
+    ctx.fillText(conf.text, x, y);
+  }
+}
+
 export class Chart {
   constructor(x0, y0, width, height, maxX, maxY) {
     this.x0 = x0;
@@ -70,16 +121,11 @@ export class Chart {
     this.height = height;
     this.maxX = maxX;
     this.maxY = maxY;
-    this.series = [];
     this.objects = [];
   }
 
-  addObject(obj) {
-    this.objects.push(obj);
-  }
-
-  addSeries(series) {
-    this.series.push(series);
+  addObject(...obj) {
+    this.objects.push(...obj);
   }
 
   isin(px, py) {
@@ -114,20 +160,16 @@ export class Chart {
     return [this.getX(x), this.getY(y)]
   }
 
-  drawLineP(ctx, x0, y0, x1, y1, lineWidth) {
-    const offset = 0; lineWidth / 2;
-    ctx.lineWidth = lineWidth;
-    ctx.beginPath();
-    ctx.moveTo(x0 + offset, y0 + offset);
-    ctx.lineTo(x1 + offset, y1 + offset);
-    ctx.stroke();
-  }
 
-  drawLine(ctx, x0, y0, x1, y1, lineWidth) {
-    const [cx0, cy0] = this.toCanvasXY(x0, y0);
-    const [cx1, cy1] = this.toCanvasXY(x1, y1);
-    this.drawLineP(ctx, cx0, cy0, cx1, cy1, lineWidth);
+  draw(ctx) {
+    ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
+
+    ctx.fillStyle = "#ffffff";
+    ctx.fillRect(this.x0, this.y0, this.width, this.height);
+
+    this.objects.sort((a, b) => a.zindex - b.zindex);
+    this.objects.forEach(obj => obj.draw(ctx, this));
   }
-} // class Chart
+}
 
 

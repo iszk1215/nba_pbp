@@ -11,7 +11,7 @@ from datetime import datetime
 # game_id = "0022300274"
 # game_id = "0042300237"
 # game_id = "0042300301"
-game_id = "0042300312"
+game_id = "0042300123"
 
 
 def download_playbyplay(game_id):

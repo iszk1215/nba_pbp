@@ -15,45 +15,15 @@
     </div>
 
     <div class="flex" id="hoge">
-      <div id="pbp-chart" style="width: 1200px; height: 900px;"></div>
-      <!--
-      <div class="invisible relative overflow-auto text-sm" style="height: 800px;">
-        <table>
-          <thead class="sticky top-0 bg-white">
-            <tr>
-              <th></th>
-              <th class="text-left">clock</th>
-              <th>{{ awayTeam.tricode }}</th>
-              <th></th>
-              <th>{{ homeTeam.tricode }}</th>
-              <th>Team</th>
-              <th class="text-left">description</th>
-            </tr>
-          </thead>
-          <tbody>
-            {% for action in actions %}
-            <tr id="action-{{ action["actionNumber"] }}">
-              <td class="font-mono text-slate-700">Q{{ action["period"] }}</td>
-              <td class="font-mono pl-1">{{ action["clock2"] }}</td>
-              <td class="text-center">{{action["scoreAway"]}}</td>
-              <td class="text-center">-</td>
-              <td class="text-center">{{action["scoreHome"]}}</td>
-              <td>{{ action["teamTricode"] }}</td>
-              <td>{{ action["description"] }}</td>
-            </tr>
-            {% endfor %}
-          </tbody>
-        </table>
-      </div>
-      -->
+      <div id="{{ gameId }}" style="width: 1200px; height: 900px;"></div>
     </div>
     </main>
   </body>
 
   <script type="module">
-    import { start } from "./pbp.js"
+    import { init } from "./pbp.js"
     import _playbypay from "./data/{{ gameId }}_playbyplay.json" with {type: "json"}
     import _boxscore from "./data/{{ gameId }}_boxscore.json" with {type: "json"}
-    start(_playbypay, _boxscore);
+    init("{{ gameId }}", _playbypay, _boxscore);
   </script>
 </html>
