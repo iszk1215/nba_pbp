@@ -55,22 +55,21 @@ function formatElapsed(elapsed) {
   return `${min}:${sec}`;
 }
 
-function makeGrid(chart, boxscore) {
-  const lastPeriod = boxscore["game"]["period"];
-  const ytick = 20;
-  const xtick = SECONDS_IN_REGULAR_PERIOD;
-
+function makeGrid(chart, ytick, lastPeriod) {
   const objects = [];
 
-  // grid
+  // y grid
   for (let y = 0; y <= chart.maxY; y += ytick)
     objects.push(new Line(0, y, chart.maxX, y, 1, STROKE_STYLE_GRID));
-  for (let x = 0; x <= chart.maxX; x += xtick)
+
+  // x grid
+  for (let x = 0; x <= 4 * SECONDS_IN_REGULAR_PERIOD; x += SECONDS_IN_REGULAR_PERIOD)
     objects.push(new Line(x, 0, x, chart.maxY, 1, STROKE_STYLE_GRID));
 
   // overtime
   for (let x = SECONDS_IN_REGULAR_PERIOD * 4 + SECONDS_IN_OVERTIME_PREIOD;
-    x <= chart.maxX; x += SECONDS_IN_OVERTIME_PREIOD)
+    x <= chart.maxX;
+    x += SECONDS_IN_OVERTIME_PREIOD)
     objects.push(new Line(x, 0, x, chart.maxY, 1, STROKE_STYLE_GRID));
 
   // x axis label
@@ -533,7 +532,7 @@ function makeChart(playbyplay, boxscore, widgets, canvas, ctx) {
 
   const chart = new Chart(chart_x0, chart_y0, chart_width, chart_height, maxX, maxY)
 
-  chart.addObject(...makeGrid(chart, boxscore));
+  chart.addObject(...makeGrid(chart, ytick, lastPeriod));
 
   const awayTeam = boxscore["game"]["awayTeam"];
   const homeTeam = boxscore["game"]["homeTeam"];
