@@ -55,6 +55,27 @@ function formatElapsed(elapsed) {
   return `${min}:${sec}`;
 }
 
+function makeTh(text, className) {
+  const th = document.createElement("th");
+  if (className)
+    th.className = className;
+  th.appendChild(document.createTextNode(text));
+  return th;
+}
+
+function makeTd(text, className) {
+  const td = document.createElement("td");
+  td.className = `before:content-['${text.replaceAll(" ", "_")}'] `
+    + "before:font-bold before:invisible before:block before:h-0"
+    + (className ? " " + className : "");
+  td.appendChild(document.createTextNode(text));
+  return td;
+}
+
+/*
+ * Grid
+ */
+
 function makeGrid(chart, ytick, lastPeriod) {
   const objects = [];
 
@@ -113,105 +134,9 @@ function makeGrid(chart, ytick, lastPeriod) {
   return objects
 }
 
-function makeScoreSeries(playbyplay, teamTricode, style) {
-  const actions = playbyplay["game"]["actions"]
-  if (actions.length == 0)
-    return;
-
-  const actionsWithShotResults = actions.filter(
-    a => a["shotResult"] && a["teamTricode"] === teamTricode)
-
-  const series = {
-    circles: [],
-    lines: [],
-  };
-
-  let score = 0;
-  let last_score = [0, 0];
-  actionsWithShotResults.forEach(action => {
-    let fill = false;
-    if (action["shotResult"] === "Made") {
-      score += POINTS_BY_ACTION[action["actionType"]];
-      fill = true;
-    }
-    const elapsed = getElapsed(action);
-
-    const [x0, y0] = last_score;
-    const [x1, y1] = [elapsed, score];
-    series.lines.push(
-      new Line(x0, y0, x1, y0, 2, style),
-      new Line(x1, y0, x1, y1, 2, style),
-    );
-    series.circles.push(
-      new Circle(elapsed, score, SCORE_RADIUS, style, fill, action),
-    )
-
-    last_score = [elapsed, score];
-  });
-
-  return series;
-}
-
-function makeGuide(maxY, config) {
-  const line = new Line(0, 0, 0, 0, config.lineWidth, config.style);
-  const lineDiff = new Line(0, 0, 0, 0, config.lineWidth * 2, config.style);
-  const textClock = new Text({
-    style: config.textStyle,
-    offsetY: 4,
-    textAlign: "center",
-    textBaseline: "top",
-  });
-  const textDiff = new Text({
-    style: config.textStyle,
-    offsetX: -4,
-    textAlign: "right",
-    textBaseline: "middle",
-  });
-
-  const object = {
-    setVisible: (visible) => {
-      object.getObjects().forEach(obj => obj.setVisible(visible));
-    },
-    moveTo: (elapsed, action) => {
-      line.moveTo(elapsed, 0, elapsed, maxY);
-      if (action) {
-        const scoreHome = parseInt(action["scoreHome"]);
-        const scoreAway = parseInt(action["scoreAway"]);
-
-        lineDiff.moveTo(elapsed, scoreHome, elapsed, scoreAway);
-
-        const diff = Math.abs(scoreHome - scoreAway);
-        textDiff.moveTo(elapsed, (scoreHome + scoreAway) / 2);
-        textDiff.setText(diff.toString());
-      }
-
-      textClock.moveTo(elapsed, 0);
-      textClock.setText(formatElapsed(elapsed));
-    },
-    getObjects: () => {
-      return [line, lineDiff, textClock, textDiff];
-    },
-  }
-
-  return object;
-}
-
-function makeTh(text, className) {
-  const th = document.createElement("th");
-  if (className)
-    th.className = className;
-  th.appendChild(document.createTextNode(text));
-  return th;
-}
-
-function makeTd(text, className) {
-  const td = document.createElement("td");
-  td.className = `before:content-['${text.replaceAll(" ", "_")}'] `
-    + "before:font-bold before:invisible before:block before:h-0"
-    + (className ? " " + className : "");
-  td.appendChild(document.createTextNode(text));
-  return td;
-}
+/*
+ * BoxScore
+ */
 
 function makeBoxscoreElement(team, color, tableColor, mouseEnter, mouseLeave) {
   const headerColor = "bg-" + color;
@@ -325,6 +250,10 @@ function addBoxscore(circles, chart, redraw, boxscore, pos, color, tableColor) {
   return obj;
 }
 
+/*
+ * ActionDialog
+ */
+
 function makeActionDialog() {
   const root = document.createElement("div");
   root.className = "p-1 absolute z-10 border-solid border border-black shadow-xl bg-white invisible";
@@ -364,13 +293,16 @@ function makeActionDialog() {
   return dialog;
 }
 
+/*
+ * ActionList
+ */
+
 function makeActionList(playbyplay, homeTeam, awayTeam) {
   const options = {
     homeColor: "bg-blue-200",
     awayColor: "bg-rose-200",
   };
 
-  const actions = playbyplay["game"]["actions"];
 
   const getLogoURL = (teamId) => `https://cdn.nba.com/logos/nba/${teamId}/global/L/logo.svg`
   const getHeadshotURL = (personId) => `https://cdn.nba.com/headshots/nba/latest/260x190/${personId}.png`;
@@ -401,12 +333,13 @@ function makeActionList(playbyplay, homeTeam, awayTeam) {
     return makeTd("");
   };
 
-  const makeTdIf = (flag, fn) => {
+  const makeTdIf = (flag, text, className) => {
     if (flag)
-      return fn();
+      return makeTd(text, className);
     return makeTd("");
   };
 
+  const actions = playbyplay["game"]["actions"];
   const rows = actions.map(action => {
     const tr = document.createElement("tr");
     const isMade = action["shotResult"] == "Made";
@@ -417,13 +350,15 @@ function makeActionList(playbyplay, homeTeam, awayTeam) {
       makeTd(action["clock"]
         .replace("PT", "").replace("M", ":").replace(/\..*/, ""),
         "font-mono pr-1"),
-      makeTdIf(isMade, () => makeTd(
+      makeTdIf(
+        isMade,
         action["scoreAway"],
-        "text-center font-mono" + (isMadeAway ? " font-bold" : ""))),
-      makeTdIf(isMade, () => makeTd("-", "text-center font-mono")),
-      makeTdIf(isMade, () => makeTd(
+        "text-center font-mono" + (isMadeAway ? " font-bold" : "")),
+      makeTdIf(isMade, "-", "text-center font-mono"),
+      makeTdIf(
+        isMade,
         action["scoreHome"],
-        "text-center font-mono" + (isMadeHome ? " font-bold" : ""))),
+        "text-center font-mono" + (isMadeHome ? " font-bold" : "")),
       makeTeamTD(action),
       makeHeadshotTD(action),
       makeTd(action["description"]),
@@ -499,6 +434,93 @@ function makeActionList(playbyplay, homeTeam, awayTeam) {
     },
     selected: null,
   };
+
+  return object;
+}
+
+/*
+ * Char
+ */
+
+function makeScoreSeries(playbyplay, teamTricode, style) {
+  const actions = playbyplay["game"]["actions"]
+  if (actions.length == 0)
+    return;
+
+  const actionsWithShotResults = actions.filter(
+    a => a["shotResult"] && a["teamTricode"] === teamTricode)
+
+  const series = {
+    circles: [],
+    lines: [],
+  };
+
+  let score = 0;
+  let last_score = [0, 0];
+  actionsWithShotResults.forEach(action => {
+    let fill = false;
+    if (action["shotResult"] === "Made") {
+      score += POINTS_BY_ACTION[action["actionType"]];
+      fill = true;
+    }
+    const elapsed = getElapsed(action);
+
+    const [x0, y0] = last_score;
+    const [x1, y1] = [elapsed, score];
+    series.lines.push(
+      new Line(x0, y0, x1, y0, 2, style),
+      new Line(x1, y0, x1, y1, 2, style),
+    );
+    series.circles.push(
+      new Circle(elapsed, score, SCORE_RADIUS, style, fill, action),
+    )
+
+    last_score = [elapsed, score];
+  });
+
+  return series;
+}
+
+function makeGuide(maxY, config) {
+  const line = new Line(0, 0, 0, 0, config.lineWidth, config.style);
+  const lineDiff = new Line(0, 0, 0, 0, config.lineWidth * 2, config.style);
+  const textClock = new Text({
+    style: config.textStyle,
+    offsetY: 4,
+    textAlign: "center",
+    textBaseline: "top",
+  });
+  const textDiff = new Text({
+    style: config.textStyle,
+    offsetX: -4,
+    textAlign: "right",
+    textBaseline: "middle",
+  });
+
+  const object = {
+    setVisible: (visible) => {
+      object.getObjects().forEach(obj => obj.setVisible(visible));
+    },
+    moveTo: (elapsed, action) => {
+      line.moveTo(elapsed, 0, elapsed, maxY);
+      if (action) {
+        const scoreHome = parseInt(action["scoreHome"]);
+        const scoreAway = parseInt(action["scoreAway"]);
+
+        lineDiff.moveTo(elapsed, scoreHome, elapsed, scoreAway);
+
+        const diff = Math.abs(scoreHome - scoreAway);
+        textDiff.moveTo(elapsed, (scoreHome + scoreAway) / 2);
+        textDiff.setText(diff.toString());
+      }
+
+      textClock.moveTo(elapsed, 0);
+      textClock.setText(formatElapsed(elapsed));
+    },
+    getObjects: () => {
+      return [line, lineDiff, textClock, textDiff];
+    },
+  }
 
   return object;
 }
