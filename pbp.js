@@ -439,7 +439,7 @@ function makeActionList(playbyplay, homeTeam, awayTeam) {
 }
 
 /*
- * Char
+ * Chart
  */
 
 function makeScoreSeries(playbyplay, teamTricode, style) {
@@ -543,7 +543,7 @@ function makeChart(playbyplay, boxscore, widgets, canvas, ctx) {
   const chart_x0 = 50;
   const chart_y0 = 20;
   const chart_width = canvas.width - 60;
-  const chart_height = canvas.height - 100;
+  const chart_height = canvas.height - 80;
   const ytick = 20;
 
   const lastPeriod = boxscore["game"]["period"];
