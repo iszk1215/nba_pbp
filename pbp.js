@@ -297,13 +297,7 @@ function makeActionDialog() {
  * ActionList
  */
 
-function makeActionList(playbyplay, homeTeam, awayTeam) {
-  const options = {
-    homeColor: "bg-blue-200",
-    awayColor: "bg-rose-200",
-  };
-
-
+function makeActionList(playbyplay, homeTeam, awayTeam, options) {
   const getLogoURL = (teamId) => `https://cdn.nba.com/logos/nba/${teamId}/global/L/logo.svg`
   const getHeadshotURL = (personId) => `https://cdn.nba.com/headshots/nba/latest/260x190/${personId}.png`;
 
@@ -397,9 +391,8 @@ function makeActionList(playbyplay, homeTeam, awayTeam) {
   table.append(tbody);
   const root = document.createElement("div")
   root.append(table);
-  // root.className = "relative overflow-auto text-base"
   root.className = "overflow-auto text-base"
-  root.style.height = "800px" // FIXME
+  root.style.height = `${options.height}px`
 
   const findNearestRow = (elapsed) => {
     let diff = null;
@@ -483,8 +476,8 @@ function makeScoreSeries(playbyplay, teamTricode, style) {
 }
 
 function makeGuide(maxY, config) {
-  const line = new Line(0, 0, 0, 0, config.lineWidth, config.style);
-  const lineDiff = new Line(0, 0, 0, 0, config.lineWidth * 2, config.style);
+  const line = new Line(0, 0, 0, 0, config.lineWidth, config.lineStyle);
+  const lineDiff = new Line(0, 0, 0, 0, config.lineWidth * 2, config.lineStyle);
   const textClock = new Text({
     style: config.textStyle,
     offsetY: 4,
@@ -532,37 +525,24 @@ function getMaxScore(playbyplay) {
   return Math.max(last["scoreAway"], last["scoreHome"])
 }
 
-function makeChart(playbyplay, boxscore, widgets, canvas, ctx) {
-  const config = {
-    chart: {
-      ytick: 20,
-    },
-    guide: {
-      lineWidth: 3,
-      style: STROKE_STYLE_GRID,
-      textStyle: TEXT_STYLE,
-    },
-  };
-
+function makeChart(playbyplay, boxscore, widgets, config) {
   const chart_x0 = 50;
   const chart_y0 = 20;
-  const chart_width = canvas.width - 60;
-  const chart_height = canvas.height - 50;
+  const chart_width = config.width - 60;
+  const chart_height = config.height - 50;
 
   const lastPeriod = boxscore["game"]["period"];
 
   const maxScore = getMaxScore(playbyplay)
   const maxX = 4 * SECONDS_IN_REGULAR_PERIOD + (lastPeriod - 4) * SECONDS_IN_OVERTIME_PREIOD;
-  const maxY = Math.ceil(maxScore / config.chart.ytick) * config.chart.ytick;
+  const maxY = Math.ceil(maxScore / config.ytick) * config.ytick;
 
   const chart = new Chart(chart_x0, chart_y0, chart_width, chart_height, maxX, maxY)
 
-  chart.addObject(...makeGrid(chart, config.chart.ytick, lastPeriod));
+  chart.addObject(...makeGrid(chart, config.ytick, lastPeriod));
 
-  const awayTeam = boxscore["game"]["awayTeam"];
-  const homeTeam = boxscore["game"]["homeTeam"];
-  const teamTricodeAway = awayTeam["teamTricode"]
-  const teamTricodeHome = homeTeam["teamTricode"]
+  const teamTricodeAway = boxscore["game"]["awayTeam"]["teamTricode"]
+  const teamTricodeHome = boxscore["game"]["homeTeam"]["teamTricode"]
   const seriesAway =
     makeScoreSeries(playbyplay, teamTricodeAway, STROKE_STYLE_AWAY);
   const seriesHome =
@@ -633,6 +613,16 @@ function makeChart(playbyplay, boxscore, widgets, canvas, ctx) {
     guide.moveTo(lx, nearestCircle ? nearestCircle.props : null);
   }
 
+  const canvas = document.createElement("canvas");
+  if (!canvas.getContext)
+    return null;
+
+  canvas.className = "border border-green-400"
+  canvas.width = config.width;
+  canvas.height = config.height;
+  const ctx = canvas.getContext("2d");
+  ctx.font = `14px ${FONT_FAMILY},arial,sans`;
+
   const redraw = () => {
     chart.draw(ctx);
   };
@@ -664,6 +654,7 @@ function makeChart(playbyplay, boxscore, widgets, canvas, ctx) {
   });
 
   const object = {
+    root: canvas,
     helper: chart,
     redraw: redraw,
     seriesAway: seriesAway,
@@ -673,53 +664,54 @@ function makeChart(playbyplay, boxscore, widgets, canvas, ctx) {
 }
 
 export function init(elementId, playbyplay, boxscore) {
+  console.log(playbyplay["game"]["gameId"])
   console.log(playbyplay)
   console.log(boxscore)
 
-  const config = {
-    chart: {
-      width: 1200,
-      height: 900,
-    },
-  };
-
-  console.log(playbyplay["game"]["gameId"])
   if (playbyplay["game"]["gameId"] !== boxscore["game"]["gameId"]) {
     console.log("gameId mismatch");
     return;
   }
 
-  const canvas = document.createElement("canvas");
-  canvas.className = "border border-green-400"
-  canvas.width = config.chart.width;
-  canvas.height = config.chart.height;
-  if (!canvas.getContext)
-    return;
-  const ctx = canvas.getContext("2d");
-  ctx.font = `14px ${FONT_FAMILY},arial,sans`;
+  const options = {
+    actionList: {
+      height: 800,
+      homeColor: "bg-blue-200",
+      awayColor: "bg-rose-200",
+    },
+    chart: {
+      width: 1200,
+      height: 900,
+      ytick: 20,
+      guide: {
+        lineWidth: 3,
+        lineStyle: STROKE_STYLE_GRID,
+        textStyle: TEXT_STYLE,
+      },
+    },
+  };
 
   const homeTeam = boxscore["game"]["homeTeam"];
   const awayTeam = boxscore["game"]["awayTeam"];
 
-  console.log(config.chart.width, config.chart.height);
-
   const actionDialog = makeActionDialog();
-  const actionList = makeActionList(playbyplay, homeTeam, awayTeam);
+  const actionList = makeActionList(playbyplay, homeTeam, awayTeam, options.actionList);
 
   const widgets = {
     actionDialog: actionDialog,
     actionList: actionList,
   };
 
-
-  const chart = makeChart(playbyplay, boxscore, widgets, canvas, ctx);
+  const chart = makeChart(playbyplay, boxscore, widgets, options.chart);
+  if (!chart)
+    return;
 
   const boxscoreHome = addBoxscore(chart.seriesHome.circles, chart.helper, chart.redraw, homeTeam, "top-left", "blue-800", "bg-blue-50");
   const boxscoreAway = addBoxscore(chart.seriesAway.circles, chart.helper, chart.redraw, awayTeam, "bottom-right", "rose-700", "bg-rose-50");
 
   const root = document.getElementById(elementId);
   root.className = "flex relative border border-red-500";
-  root.append(canvas);
+  root.append(chart.root);
   root.append(boxscoreAway.root);
   root.append(boxscoreHome.root);
   root.appendChild(actionList.root);
