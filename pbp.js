@@ -285,8 +285,8 @@ function makeActionDialog() {
       dialog.setDescription(action["description"]);
       dialog.setImage(src);
       const [x, y] = chart.toCanvasXY(obj.lx, obj.ly);
-      root.style.top = `${y + 10}px`;
-      root.style.left = `${x + 10}px`;
+      root.style.top = `${y + SCORE_RADIUS + 2}px`;
+      root.style.left = `${x + SCORE_RADIUS + 2}px`;
     },
   };
 
@@ -397,7 +397,8 @@ function makeActionList(playbyplay, homeTeam, awayTeam) {
   table.append(tbody);
   const root = document.createElement("div")
   root.append(table);
-  root.className = "relative overflow-auto text-base"
+  // root.className = "relative overflow-auto text-base"
+  root.className = "overflow-auto text-base"
   root.style.height = "800px" // FIXME
 
   const findNearestRow = (elapsed) => {
@@ -543,7 +544,7 @@ function makeChart(playbyplay, boxscore, widgets, canvas, ctx) {
   const chart_x0 = 50;
   const chart_y0 = 20;
   const chart_width = canvas.width - 60;
-  const chart_height = canvas.height - 80;
+  const chart_height = canvas.height - 50;
   const ytick = 20;
 
   const lastPeriod = boxscore["game"]["period"];
@@ -645,7 +646,6 @@ function makeChart(playbyplay, boxscore, widgets, canvas, ctx) {
     if (chart.isin(cx, cy)) {
       guide.setVisible(true);
       onMouseMove(e)
-
     } else {
       guide.setVisible(false);
     }
@@ -674,6 +674,13 @@ export function init(elementId, playbyplay, boxscore) {
   console.log(playbyplay)
   console.log(boxscore)
 
+  const config = {
+    chart: {
+      width: 1200,
+      height: 900,
+    },
+  };
+
   console.log(playbyplay["game"]["gameId"])
   if (playbyplay["game"]["gameId"] !== boxscore["game"]["gameId"]) {
     console.log("gameId mismatch");
@@ -688,26 +695,23 @@ export function init(elementId, playbyplay, boxscore) {
   const awayTeam = boxscore["game"]["awayTeam"];
 
   const root = document.getElementById(elementId);
-  console.log(root.clientWidth)
-  console.log(root.clientHeight)
+  root.className = "flex relative border border-red-500";
 
-  const width = root.clientWidth;
-  const height = root.clientHeight;
+  console.log(config.chart.width, config.chart.height);
 
   const chartDiv = document.createElement("div");
-  chartDiv.className = "relative";
-  chartDiv.style.width = `${width}px`;
-  chartDiv.style.height = `${height}px`;
+  //chartDiv.className = "relative";
+  chartDiv.className = "border border-green-400 relative"
+  chartDiv.style.width = `${config.chart.width}px`;
+  chartDiv.style.height = `${config.chart.height}px`;
 
   const actionDialog = makeActionDialog();
-  chartDiv.appendChild(actionDialog.root);
+  root.appendChild(actionDialog.root);
 
   const actionList = makeActionList(playbyplay, homeTeam, awayTeam);
-  root.parentElement.appendChild(actionList.root);
 
-  canvas.className = "absolute";
-  canvas.width = width;
-  canvas.height = height;
+  canvas.width = config.chart.width;
+  canvas.height = config.chart.height;
   chartDiv.appendChild(canvas);
 
   const widgets = {
@@ -727,4 +731,5 @@ export function init(elementId, playbyplay, boxscore) {
   chartDiv.append(boxscoreHome.root);
 
   root.append(chartDiv);
+  root.appendChild(actionList.root);
 }
