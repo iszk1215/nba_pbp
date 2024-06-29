@@ -534,6 +534,9 @@ function getMaxScore(playbyplay) {
 
 function makeChart(playbyplay, boxscore, widgets, canvas, ctx) {
   const config = {
+    chart: {
+      ytick: 20,
+    },
     guide: {
       lineWidth: 3,
       style: STROKE_STYLE_GRID,
@@ -545,17 +548,16 @@ function makeChart(playbyplay, boxscore, widgets, canvas, ctx) {
   const chart_y0 = 20;
   const chart_width = canvas.width - 60;
   const chart_height = canvas.height - 50;
-  const ytick = 20;
 
   const lastPeriod = boxscore["game"]["period"];
 
   const maxScore = getMaxScore(playbyplay)
   const maxX = 4 * SECONDS_IN_REGULAR_PERIOD + (lastPeriod - 4) * SECONDS_IN_OVERTIME_PREIOD;
-  const maxY = Math.ceil(maxScore / ytick) * ytick;
+  const maxY = Math.ceil(maxScore / config.chart.ytick) * config.chart.ytick;
 
   const chart = new Chart(chart_x0, chart_y0, chart_width, chart_height, maxX, maxY)
 
-  chart.addObject(...makeGrid(chart, ytick, lastPeriod));
+  chart.addObject(...makeGrid(chart, config.chart.ytick, lastPeriod));
 
   const awayTeam = boxscore["game"]["awayTeam"];
   const homeTeam = boxscore["game"]["homeTeam"];
@@ -662,7 +664,7 @@ function makeChart(playbyplay, boxscore, widgets, canvas, ctx) {
   });
 
   const object = {
-    chart: chart,
+    helper: chart,
     redraw: redraw,
     seriesAway: seriesAway,
     seriesHome: seriesHome,
@@ -688,48 +690,38 @@ export function init(elementId, playbyplay, boxscore) {
   }
 
   const canvas = document.createElement("canvas");
+  canvas.className = "border border-green-400"
+  canvas.width = config.chart.width;
+  canvas.height = config.chart.height;
   if (!canvas.getContext)
     return;
+  const ctx = canvas.getContext("2d");
+  ctx.font = `14px ${FONT_FAMILY},arial,sans`;
 
   const homeTeam = boxscore["game"]["homeTeam"];
   const awayTeam = boxscore["game"]["awayTeam"];
 
-  const root = document.getElementById(elementId);
-  root.className = "flex relative border border-red-500";
-
   console.log(config.chart.width, config.chart.height);
 
-  const chartDiv = document.createElement("div");
-  //chartDiv.className = "relative";
-  chartDiv.className = "border border-green-400 relative"
-  chartDiv.style.width = `${config.chart.width}px`;
-  chartDiv.style.height = `${config.chart.height}px`;
-
   const actionDialog = makeActionDialog();
-  root.appendChild(actionDialog.root);
-
   const actionList = makeActionList(playbyplay, homeTeam, awayTeam);
-
-  canvas.width = config.chart.width;
-  canvas.height = config.chart.height;
-  chartDiv.appendChild(canvas);
 
   const widgets = {
     actionDialog: actionDialog,
     actionList: actionList,
   };
 
-  const ctx = canvas.getContext("2d");
-  ctx.font = `14px ${FONT_FAMILY},arial,sans`;
 
   const chart = makeChart(playbyplay, boxscore, widgets, canvas, ctx);
 
-  const boxscoreHome = addBoxscore(chart.seriesHome.circles, chart.chart, chart.redraw, homeTeam, "top-left", "blue-800", "bg-blue-50");
-  const boxscoreAway = addBoxscore(chart.seriesAway.circles, chart.chart, chart.redraw, awayTeam, "bottom-right", "rose-700", "bg-rose-50");
+  const boxscoreHome = addBoxscore(chart.seriesHome.circles, chart.helper, chart.redraw, homeTeam, "top-left", "blue-800", "bg-blue-50");
+  const boxscoreAway = addBoxscore(chart.seriesAway.circles, chart.helper, chart.redraw, awayTeam, "bottom-right", "rose-700", "bg-rose-50");
 
-  chartDiv.append(boxscoreAway.root);
-  chartDiv.append(boxscoreHome.root);
-
-  root.append(chartDiv);
+  const root = document.getElementById(elementId);
+  root.className = "flex relative border border-red-500";
+  root.append(canvas);
+  root.append(boxscoreAway.root);
+  root.append(boxscoreHome.root);
   root.appendChild(actionList.root);
+  root.appendChild(actionDialog.root);
 }
