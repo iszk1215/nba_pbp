@@ -18,6 +18,10 @@ const SCORE_RADIUS = 6;
 const FONT_FAMILY = "Roboto";
 
 
+function getHeadshotURL(personId) {
+  return `https://cdn.nba.com/headshots/nba/latest/260x190/${personId}.png`;
+}
+
 function getElapsed(action) {
   const period = parseInt(action["period"])
   const clock = action["clock"];
@@ -280,7 +284,7 @@ function makeActionDialog() {
       }
     },
     setAction: (chart, action, elapsed, score) => {
-      const src = `https://cdn.nba.com/headshots/nba/latest/260x190/${action["personId"]}.png`;
+      const src = getHeadshotURL(action["personId"]);
       dialog.setDescription(action["description"]);
       dialog.setImage(src);
       const [x, y] = chart.toCanvasXY(elapsed, score);
@@ -298,7 +302,6 @@ function makeActionDialog() {
 
 function makeActionList(playbyplay, homeTeam, awayTeam, options) {
   const getLogoURL = (teamId) => `https://cdn.nba.com/logos/nba/${teamId}/global/L/logo.svg`
-  const getHeadshotURL = (personId) => `https://cdn.nba.com/headshots/nba/latest/260x190/${personId}.png`;
 
   const makeTeamTD = (action) => {
     if ("teamId" in action) {
@@ -525,7 +528,7 @@ function getMaxScore(playbyplay) {
   return Math.max(last["scoreAway"], last["scoreHome"])
 }
 
-function makeChart(playbyplay, boxscore, widgets, config) {
+function makeChart(playbyplay, boxscore, config) {
   const chart_x0 = 50;
   const chart_y0 = 20;
   const chart_width = config.width - 60;
@@ -541,12 +544,12 @@ function makeChart(playbyplay, boxscore, widgets, config) {
 
   chart.addObject(...makeGrid(chart, config.ytick, lastPeriod));
 
-  const teamTricodeAway = boxscore["game"]["awayTeam"]["teamTricode"]
-  const teamTricodeHome = boxscore["game"]["homeTeam"]["teamTricode"]
+  const tricodeAway = boxscore["game"]["awayTeam"]["teamTricode"]
+  const tricodeHome = boxscore["game"]["homeTeam"]["teamTricode"]
   const seriesAway =
-    makeScoreSeries(playbyplay, teamTricodeAway, STROKE_STYLE_AWAY);
+    makeScoreSeries(playbyplay, tricodeAway, config.stroke_style_away);
   const seriesHome =
-    makeScoreSeries(playbyplay, teamTricodeHome, STROKE_STYLE_HOME);
+    makeScoreSeries(playbyplay, tricodeHome, config.stroke_style_home);
 
   chart.addObject(
     ...seriesAway.lines,
@@ -554,6 +557,9 @@ function makeChart(playbyplay, boxscore, widgets, config) {
     ...seriesHome.lines,
     ...seriesHome.circles,
   );
+
+  const circles = [];
+  circles.push(...seriesAway.circles, ...seriesHome.circles);
 
   const guide = makeGuide(maxY, config.guide);
   chart.addObject(...guide.getObjects());
@@ -565,9 +571,6 @@ function makeChart(playbyplay, boxscore, widgets, config) {
     let absMinDistance = cx;
     let nearestCircle = null;
     let latestCircle = null;
-
-    const circles = [];
-    circles.push(...seriesAway.circles, ...seriesHome.circles);
 
     circles.forEach(obj => {
       const d = cx - chart.getX(obj.lx);
@@ -587,48 +590,40 @@ function makeChart(playbyplay, boxscore, widgets, config) {
     return [nearestCircle, latestCircle];
   };
 
-  const onMouseMoveCallback = (elapsed, action, score) => {
-    if (action) {
-      widgets.actionList.selectAction(action["actionNumber"])
-      widgets.actionDialog.setAction(chart, action, elapsed, score);
-      widgets.actionDialog.setVisible(true);
-    } else {
-      widgets.actionList.scrollToElapsed(elapsed);
-      widgets.actionDialog.setVisible(false);
-    }
-
-  };
-
-  const onMouseMove = (e) => {
-    const [cx, cy] = [e.offsetX, e.offsetY];
-    const [lx, ly] = chart.toLogical(cx, cy);
-
-    let [selectedCircle, latestCircle] = findNearest(e)
-    let elapsed = lx;
-    let action = null;
-    if (selectedCircle) {
-      latestCircle = selectedCircle;
-      elapsed = selectedCircle.lx;
-      action = selectedCircle.props;
-    }
-
-    const circles = [];
-    circles.push(...seriesAway.circles, ...seriesHome.circles);
-
+  const updateCicles = (selectedCircle) => {
     circles.forEach(obj => {
       if (obj != selectedCircle && obj.isMouseOn) {
         obj.isMouseOn = false;
-        obj.r = SCORE_RADIUS;
+        obj.r = config.shot_radius;
       }
     });
 
     if (selectedCircle && !selectedCircle.isMouseOn) {
       selectedCircle.isMouseOn = true;
-      obj.r = SCORE_RADIUS + 2;
+      selectedCircle.r = config.shot_radius + 2;
+    }
+  }
+
+  const onMouseMove = (e, callback) => {
+    const [cx, cy] = [e.offsetX, e.offsetY];
+    const [lx, ly] = chart.toLogical(cx, cy);
+
+    let [selectedCircle, latestCircle] = findNearest(e)
+    let elapsed = lx;
+    let selectedAction = null;
+    let selectedActionScore = null;
+    if (selectedCircle) {
+      latestCircle = selectedCircle;
+      elapsed = selectedCircle.lx;
+      selectedAction = selectedCircle.props;
+      selectedActionScore = selectedCircle.ly;
     }
 
+    updateCicles(selectedCircle);
+
     guide.moveTo(elapsed, latestCircle ? latestCircle.props : null);
-    onMouseMoveCallback(elapsed, action, latestCircle ? latestCircle.ly : 0);
+    if (callback)
+      callback(chart, elapsed, selectedAction, selectedActionScore);
   }
 
   const canvas = document.createElement("canvas");
@@ -639,10 +634,19 @@ function makeChart(playbyplay, boxscore, widgets, config) {
   canvas.width = config.width;
   canvas.height = config.height;
   const ctx = canvas.getContext("2d");
-  ctx.font = `14px ${FONT_FAMILY},arial,sans`;
+  ctx.font = config.font;
 
   const redraw = () => {
     chart.draw(ctx);
+  };
+
+  const object = {
+    root: canvas,
+    helper: chart,
+    redraw: redraw,
+    seriesAway: seriesAway,
+    seriesHome: seriesHome,
+    onMouseMoveCallback: null,
   };
 
   canvas.addEventListener("mouseleave", (e) => {
@@ -655,29 +659,13 @@ function makeChart(playbyplay, boxscore, widgets, config) {
     const [cx, cy] = [e.offsetX, e.offsetY];
     if (chart.isin(cx, cy)) {
       guide.setVisible(true);
-      onMouseMove(e)
+      onMouseMove(e, object.onMouseMoveCallback)
     } else {
       guide.setVisible(false);
     }
     redraw();
   });
 
-  WebFont.load({
-    google: {
-      families: [FONT_FAMILY],
-    },
-    active: function() {
-      redraw();
-    },
-  });
-
-  const object = {
-    root: canvas,
-    helper: chart,
-    redraw: redraw,
-    seriesAway: seriesAway,
-    seriesHome: seriesHome,
-  };
   return object;
 }
 
@@ -701,6 +689,10 @@ export function init(elementId, playbyplay, boxscore) {
       width: 1200,
       height: 900,
       ytick: 20,
+      stroke_style_away: STROKE_STYLE_AWAY,
+      stroke_style_home: STROKE_STYLE_HOME,
+      font: `14px ${FONT_FAMILY},arial,sans`,
+      shot_radius: SCORE_RADIUS,
       guide: {
         lineWidth: 3,
         lineStyle: STROKE_STYLE_GRID,
@@ -720,9 +712,32 @@ export function init(elementId, playbyplay, boxscore) {
     actionList: actionList,
   };
 
-  const chart = makeChart(playbyplay, boxscore, widgets, options.chart);
+  const onMouseMoveCallback = (chart, elapsed, action, score) => {
+    if (action) {
+      widgets.actionList.selectAction(action["actionNumber"])
+      widgets.actionDialog.setAction(chart, action, elapsed, score);
+      widgets.actionDialog.setVisible(true);
+    } else {
+      widgets.actionList.scrollToElapsed(elapsed);
+      widgets.actionDialog.setVisible(false);
+    }
+
+  };
+
+  const chart = makeChart(playbyplay, boxscore, options.chart);
   if (!chart)
     return;
+
+  chart.onMouseMoveCallback = onMouseMoveCallback;
+
+  WebFont.load({
+    google: {
+      families: [FONT_FAMILY],
+    },
+    active: function() {
+      chart.redraw();
+    },
+  });
 
   const boxscoreHome = addBoxscore(chart.seriesHome.circles, chart.helper, chart.redraw, homeTeam, "top-left", "blue-800", "bg-blue-50");
   const boxscoreAway = addBoxscore(chart.seriesAway.circles, chart.helper, chart.redraw, awayTeam, "bottom-right", "rose-700", "bg-rose-50");
