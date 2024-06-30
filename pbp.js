@@ -279,12 +279,11 @@ function makeActionDialog() {
         root.classList.add("invisible");
       }
     },
-    setAction: (chart, obj, e) => {
-      const action = obj.props;
+    setAction: (chart, action, elapsed, score) => {
       const src = `https://cdn.nba.com/headshots/nba/latest/260x190/${action["personId"]}.png`;
       dialog.setDescription(action["description"]);
       dialog.setImage(src);
-      const [x, y] = chart.toCanvasXY(obj.lx, obj.ly);
+      const [x, y] = chart.toCanvasXY(elapsed, score);
       root.style.top = `${y + SCORE_RADIUS + 2}px`;
       root.style.left = `${x + SCORE_RADIUS + 2}px`;
     },
@@ -496,6 +495,7 @@ function makeGuide(maxY, config) {
       object.getObjects().forEach(obj => obj.setVisible(visible));
     },
     moveTo: (elapsed, action) => {
+      // FIXME
       line.moveTo(elapsed, 0, elapsed, maxY);
       if (action) {
         const scoreHome = parseInt(action["scoreHome"]);
@@ -558,22 +558,11 @@ function makeChart(playbyplay, boxscore, widgets, config) {
   const guide = makeGuide(maxY, config.guide);
   chart.addObject(...guide.getObjects());
 
-  const onMouseLeaveCircle = (obj, e) => {
-    obj.r = SCORE_RADIUS;
-    widgets.actionDialog.setVisible(false);
-  }
-
-  const onMouseEnterCircle = (obj, e) => {
-    obj.r = SCORE_RADIUS + 2;
-    widgets.actionDialog.setAction(chart, obj, e);
-    widgets.actionDialog.setVisible(true);
-  };
-
-  const onMouseMove = (e) => {
+  const findNearest = (e) => {
     const [cx, cy] = [e.offsetX, e.offsetY];
-    const [lx, ly] = chart.toLogical(cx, cy);
 
     let minDistance = cx;
+    let absMinDistance = cx;
     let nearestCircle = null;
     let latestCircle = null;
 
@@ -582,35 +571,64 @@ function makeChart(playbyplay, boxscore, widgets, config) {
 
     circles.forEach(obj => {
       const d = cx - chart.getX(obj.lx);
-      const dd = Math.abs(d);
-      if (dd < minDistance) {
-        minDistance = dd;
-        if (dd < obj.r)
+      const absDistance = Math.abs(d);
+      if (d >= 0 && d < minDistance) {
+        minDistance = d;
+        latestCircle = obj;
+      }
+      if (absDistance < obj.r) {
+        if (absDistance < absMinDistance) {
+          absMinDistance = absDistance;
           nearestCircle = obj;
-        if (d >= 0)
-          latestCircle = obj;
+        }
       }
     });
+
+    return [nearestCircle, latestCircle];
+  };
+
+  const onMouseMoveCallback = (elapsed, action, score) => {
+    if (action) {
+      widgets.actionList.selectAction(action["actionNumber"])
+      widgets.actionDialog.setAction(chart, action, elapsed, score);
+      widgets.actionDialog.setVisible(true);
+    } else {
+      widgets.actionList.scrollToElapsed(elapsed);
+      widgets.actionDialog.setVisible(false);
+    }
+
+  };
+
+  const onMouseMove = (e) => {
+    const [cx, cy] = [e.offsetX, e.offsetY];
+    const [lx, ly] = chart.toLogical(cx, cy);
+
+    let [selectedCircle, latestCircle] = findNearest(e)
+    let elapsed = lx;
+    let action = null;
+    if (selectedCircle) {
+      latestCircle = selectedCircle;
+      elapsed = selectedCircle.lx;
+      action = selectedCircle.props;
+    }
+
+    const circles = [];
+    circles.push(...seriesAway.circles, ...seriesHome.circles);
 
     circles.forEach(obj => {
-      if (obj != nearestCircle && obj.isMouseOn) {
+      if (obj != selectedCircle && obj.isMouseOn) {
         obj.isMouseOn = false;
-        onMouseLeaveCircle(obj, e);
+        obj.r = SCORE_RADIUS;
       }
     });
 
-    if (nearestCircle && !nearestCircle.isMouseOn) {
-      nearestCircle.isMouseOn = true;
-      onMouseEnterCircle(nearestCircle, e);
+    if (selectedCircle && !selectedCircle.isMouseOn) {
+      selectedCircle.isMouseOn = true;
+      obj.r = SCORE_RADIUS + 2;
     }
 
-    if (nearestCircle) {
-      widgets.actionList.selectAction(nearestCircle.props["actionNumber"])
-    } else {
-      widgets.actionList.scrollToElapsed(lx);
-    }
-
-    guide.moveTo(lx, nearestCircle ? nearestCircle.props : null);
+    guide.moveTo(elapsed, latestCircle ? latestCircle.props : null);
+    onMouseMoveCallback(elapsed, action, latestCircle ? latestCircle.ly : 0);
   }
 
   const canvas = document.createElement("canvas");
@@ -675,7 +693,7 @@ export function init(elementId, playbyplay, boxscore) {
 
   const options = {
     actionList: {
-      height: 800,
+      height: 900,
       homeColor: "bg-blue-200",
       awayColor: "bg-rose-200",
     },
