@@ -540,10 +540,6 @@ function makeChart(playbyplay, boxscore, config) {
   const maxX = 4 * SECONDS_IN_REGULAR_PERIOD + (lastPeriod - 4) * SECONDS_IN_OVERTIME_PREIOD;
   const maxY = Math.ceil(maxScore / config.ytick) * config.ytick;
 
-  const chart = new Chart(chart_x0, chart_y0, chart_width, chart_height, maxX, maxY)
-
-  chart.addObject(...makeGrid(chart, config.ytick, lastPeriod));
-
   const tricodeAway = boxscore["game"]["awayTeam"]["teamTricode"]
   const tricodeHome = boxscore["game"]["homeTeam"]["teamTricode"]
   const seriesAway =
@@ -551,18 +547,19 @@ function makeChart(playbyplay, boxscore, config) {
   const seriesHome =
     makeScoreSeries(playbyplay, tricodeHome, config.stroke_style_home);
 
+  const guide = makeGuide(maxY, config.guide);
+
+  const chart = new Chart(chart_x0, chart_y0, chart_width, chart_height, maxX, maxY)
   chart.addObject(
     ...seriesAway.lines,
     ...seriesAway.circles,
     ...seriesHome.lines,
     ...seriesHome.circles,
   );
-
-  const circles = [];
-  circles.push(...seriesAway.circles, ...seriesHome.circles);
-
-  const guide = makeGuide(maxY, config.guide);
+  chart.addObject(...makeGrid(chart, config.ytick, lastPeriod));
   chart.addObject(...guide.getObjects());
+
+  const circles = [...seriesAway.circles, ...seriesHome.circles];
 
   const findNearest = (e) => {
     const [cx, cy] = [e.offsetX, e.offsetY];
@@ -579,11 +576,9 @@ function makeChart(playbyplay, boxscore, config) {
         minDistance = d;
         latestCircle = obj;
       }
-      if (absDistance < obj.r) {
-        if (absDistance < absMinDistance) {
-          absMinDistance = absDistance;
-          nearestCircle = obj;
-        }
+      if (absDistance < obj.r && absDistance < absMinDistance) {
+        absMinDistance = absDistance;
+        nearestCircle = obj;
       }
     });
 
@@ -636,14 +631,10 @@ function makeChart(playbyplay, boxscore, config) {
   const ctx = canvas.getContext("2d");
   ctx.font = config.font;
 
-  const redraw = () => {
-    chart.draw(ctx);
-  };
-
   const object = {
     root: canvas,
     helper: chart,
-    redraw: redraw,
+    redraw: () => { chart.draw(ctx); },
     seriesAway: seriesAway,
     seriesHome: seriesHome,
     onMouseMoveCallback: null,
@@ -651,11 +642,10 @@ function makeChart(playbyplay, boxscore, config) {
 
   canvas.addEventListener("mouseleave", (e) => {
     guide.setVisible(false);
-    redraw();
+    object.redraw();
   });
 
   canvas.addEventListener("mousemove", (e) => {
-    // console.log("mousemove")
     const [cx, cy] = [e.offsetX, e.offsetY];
     if (chart.isin(cx, cy)) {
       guide.setVisible(true);
@@ -663,7 +653,7 @@ function makeChart(playbyplay, boxscore, config) {
     } else {
       guide.setVisible(false);
     }
-    redraw();
+    object.redraw();
   });
 
   return object;
@@ -707,6 +697,10 @@ export function init(elementId, playbyplay, boxscore) {
   const actionDialog = makeActionDialog();
   const actionList = makeActionList(playbyplay, homeTeam, awayTeam, options.actionList);
 
+  const chart = makeChart(playbyplay, boxscore, options.chart);
+  if (!chart)
+    return;
+
   const widgets = {
     actionDialog: actionDialog,
     actionList: actionList,
@@ -723,10 +717,6 @@ export function init(elementId, playbyplay, boxscore) {
     }
 
   };
-
-  const chart = makeChart(playbyplay, boxscore, options.chart);
-  if (!chart)
-    return;
 
   chart.onMouseMoveCallback = onMouseMoveCallback;
 
