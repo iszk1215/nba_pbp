@@ -17,6 +17,10 @@ const TEXT_STYLE = "rgb(100, 100, 100)";
 const SCORE_RADIUS = 6;
 const FONT_FAMILY = "Roboto";
 
+function call_if(fn, ...args) {
+  if (fn)
+    return fn(...args);
+}
 
 function getHeadshotURL(personId) {
   return `https://cdn.nba.com/headshots/nba/latest/260x190/${personId}.png`;
@@ -138,13 +142,20 @@ function makeGrid(chart, ytick, lastPeriod) {
   return objects
 }
 
+
 /*
  * BoxScore
  */
 
-function makeBoxscoreElement(team, color, tableColor, mouseEnter, mouseLeave) {
+function makeBoxscore(team, color, tableColor) {
   const headerColor = "bg-" + color;
   const borderColor = "border-" + color;
+
+  const callbacks = {
+    mouseEnter: null,
+    mouseLeave: null,
+  };
+
   const caption = document.createElement("caption");
   caption.className = "font-bold";
   caption.append(document.createTextNode(team["teamName"]));
@@ -187,8 +198,10 @@ function makeBoxscoreElement(team, color, tableColor, mouseEnter, mouseLeave) {
       makeTd(stats["turnovers"].toString(), tdClass),
     );
 
-    tr.addEventListener("mouseenter", () => { mouseEnter(player); });
-    tr.addEventListener("mouseleave", () => { mouseLeave(player); });
+    tr.addEventListener(
+      "mouseenter", () => { call_if(callbacks.mouseEnter, player); });
+    tr.addEventListener(
+      "mouseleave", () => { call_if(callbacks.mouseLeave, player); });
 
     return tr;
   }));
@@ -203,11 +216,16 @@ function makeBoxscoreElement(team, color, tableColor, mouseEnter, mouseLeave) {
 
   const object = {
     root: root,
+    callbacks: callbacks,
+    setMouseEnter: (fn) => { callbacks.mouseEnter = fn; },
+    setMouseLeave: (fn) => { callbacks.mouseLeave = fn; },
   };
+
+
   return object;
 }
 
-function addBoxscore(circles, chart, redraw, boxscore, pos, color, tableColor) {
+function addBoxscore(obj, circles, chart, redraw, boxscore, pos) {
   let selectedPlayer = null;
 
   const mouseEnter = (player) => {
@@ -237,7 +255,8 @@ function addBoxscore(circles, chart, redraw, boxscore, pos, color, tableColor) {
     redraw();
   };
 
-  const obj = makeBoxscoreElement(boxscore, color, tableColor, mouseEnter, mouseLeave);
+  obj.setMouseEnter(mouseEnter)
+  obj.setMouseLeave(mouseLeave)
 
   const elem = obj.root;
   const ob = new ResizeObserver((e) => {
@@ -622,10 +641,12 @@ function makeChart(playbyplay, boxscore, config) {
   }
 
   const canvas = document.createElement("canvas");
-  if (!canvas.getContext)
+  if (!canvas.getContext) {
+    console.log("canvas does not support 2d context");
     return null;
+  }
 
-  canvas.className = "border border-green-400"
+  // canvas.className = "border border-green-400"
   canvas.width = config.width;
   canvas.height = config.height;
   const ctx = canvas.getContext("2d");
@@ -698,18 +719,18 @@ export function init(elementId, playbyplay, boxscore) {
   const actionList = makeActionList(playbyplay, homeTeam, awayTeam, options.actionList);
 
   const chart = makeChart(playbyplay, boxscore, options.chart);
-  if (!chart)
-    return;
+  const boxscoreHome = makeBoxscore(homeTeam, "blue-800", "bg-blue-50");
+  const boxscoreAway = makeBoxscore(awayTeam, "rose-800", "bg-rose-50");
 
   const widgets = {
     actionDialog: actionDialog,
     actionList: actionList,
   };
 
-  const onMouseMoveCallback = (chart, elapsed, action, score) => {
+  const onMouseMoveCallback = (chartHelper, elapsed, action, score) => {
     if (action) {
       widgets.actionList.selectAction(action["actionNumber"])
-      widgets.actionDialog.setAction(chart, action, elapsed, score);
+      widgets.actionDialog.setAction(chartHelper, action, elapsed, score);
       widgets.actionDialog.setVisible(true);
     } else {
       widgets.actionList.scrollToElapsed(elapsed);
@@ -729,11 +750,12 @@ export function init(elementId, playbyplay, boxscore) {
     },
   });
 
-  const boxscoreHome = addBoxscore(chart.seriesHome.circles, chart.helper, chart.redraw, homeTeam, "top-left", "blue-800", "bg-blue-50");
-  const boxscoreAway = addBoxscore(chart.seriesAway.circles, chart.helper, chart.redraw, awayTeam, "bottom-right", "rose-700", "bg-rose-50");
+  addBoxscore(boxscoreHome, chart.seriesHome.circles, chart.helper, chart.redraw, homeTeam, "top-left");
+  addBoxscore(boxscoreAway, chart.seriesAway.circles, chart.helper, chart.redraw, awayTeam, "bottom-right");
 
   const root = document.getElementById(elementId);
-  root.className = "flex relative border border-red-500";
+  // root.className = "flex relative border border-red-500";
+  root.className = "flex relative";
   root.append(chart.root);
   root.append(boxscoreAway.root);
   root.append(boxscoreHome.root);
