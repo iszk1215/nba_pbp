@@ -225,7 +225,7 @@ function makeBoxscore(team, color, tableColor) {
   return object;
 }
 
-function addBoxscore(obj, circles, chart, redraw, boxscore, pos) {
+function addBoxscore(obj, circles, chart, redraw, pos) {
   let selectedPlayer = null;
 
   const mouseEnter = (player) => {
@@ -750,8 +750,8 @@ export function init(elementId, playbyplay, boxscore) {
     },
   });
 
-  addBoxscore(boxscoreHome, chart.seriesHome.circles, chart.helper, chart.redraw, homeTeam, "top-left");
-  addBoxscore(boxscoreAway, chart.seriesAway.circles, chart.helper, chart.redraw, awayTeam, "bottom-right");
+  addBoxscore(boxscoreHome, chart.seriesHome.circles, chart.helper, chart.redraw, "top-left");
+  addBoxscore(boxscoreAway, chart.seriesAway.circles, chart.helper, chart.redraw, "bottom-right");
 
   const root = document.getElementById(elementId);
   // root.className = "flex relative border border-red-500";
