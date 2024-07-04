@@ -634,12 +634,10 @@ function makeChart(playbyplay, boxscore, config) {
       away: seriesAway,
       home: seriesHome,
     },
-    // seriesAway: seriesAway,
-    // seriesHome: seriesHome,
     onMouseMoveCallback: null,
     selectedPlayer: null,
     selectPlayer: (player, team) => {
-      self.selectedPlayer = { "player": player, "color": null };
+      self.selectedPlayer = player;
       const series = self.series[team];
 
       series.lines.forEach(obj => {
@@ -649,7 +647,6 @@ function makeChart(playbyplay, boxscore, config) {
         if (obj.props["personId"] == player["personId"]) {
           obj.r = SCORE_RADIUS + 2;
         } else {
-          self.selectedPlayer.color = obj.primaryStyle;
           obj.primaryStyle = STROKE_STYLE_GRID;
         }
       });
@@ -662,10 +659,10 @@ function makeChart(playbyplay, boxscore, config) {
       });
 
       series.circles.forEach(obj => {
-        if (obj.props["personId"] == self.selectedPlayer.player["personId"]) {
+        if (obj.props["personId"] == player["personId"]) {
           obj.r = SCORE_RADIUS;
         } else {
-          obj.primaryStyle = self.selectedPlayer.color;
+          obj.primaryStyle = config.style[team].primaryStyle;
         }
       });
       self.selectedPlayer = null;
@@ -729,20 +726,11 @@ export function init(elementId, playbyplay, boxscore) {
       style: {
         away: {
           lineStyle: STROKE_STYLE_AWAY,
-          // primaryStyle: "rgb(254, 205, 211)",
-          // primaryStyle: "#facc15", // yellow-400,
           primaryStyle: STROKE_STYLE_AWAY,
-          // primaryStyle: "#65a30d", // "lime-500"
-          strokeStyle: STROKE_STYLE_AWAY,
         },
         home: {
           lineStyle: STROKE_STYLE_HOME,
           primaryStyle: STROKE_STYLE_HOME,
-          // primaryStyle: STROKE_STYLE_GRID,
-          // primaryStyle: "#93c5fd",
-          // primaryStyle: "#facc15",
-          // primaryStyle: "#65a30d", // "lime-500"
-          strokeStyle: STROKE_STYLE_HOME,
         },
       },
       guide: {
