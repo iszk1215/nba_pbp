@@ -1,6 +1,7 @@
 import json
 from nba_api.live.nba.endpoints import playbyplay, boxscore, scoreboard
-from nba_api.stats.endpoints import boxscoreadvancedv3, scoreboardv2, playbyplayv3
+from nba_api.stats.endpoints import boxscoreadvancedv3, scoreboardv2, playbyplayv3, playbyplayv2
+import nba_on_court as noc
 
 # from nba_api.stats.library.parameters import GameDate
 from datetime import datetime
@@ -15,8 +16,17 @@ game_id = "0042300123"
 
 
 def download_playbyplay(game_id):
-    data = playbyplay.PlayByPlay(game_id)
+    # data = playbyplay.PlayByPlay(game_id)
     # data = playbyplayv3.PlayByPlayV3(game_id)
+    data = playbyplayv2.PlayByPlayV2(game_id)
+
+    data.play_by_play.get_data_frame().to_csv("hoge.csv")
+    pbpp = noc.players_on_court(data.play_by_play.get_data_frame())
+    print(pbpp.columns)
+    print(pbpp["SCORE"])
+
+    # with open("hoge.txt", "w") as f:
+        # f.write(json.dumps(json.loads(data.play_by_play.get_json()), indent=2))
 
     with open(f"{game_id}_playbyplay.txt", "w") as f:
         f.write(json.dumps(json.loads(data.get_json()), indent=2))
@@ -52,7 +62,7 @@ def download_stats_boxscore(game_id):
 print(str(datetime.now().date()))
 
 download_playbyplay(game_id)
-download_boxscore(game_id)
+# download_boxscore(game_id)
 # download_scoreboard()
 
 # download_stats_boxscore(game_id)

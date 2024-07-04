@@ -7,8 +7,6 @@ const POINTS_BY_ACTION = {
 };
 const SECONDS_IN_REGULAR_PERIOD = 12 * 60;
 const SECONDS_IN_OVERTIME_PREIOD = 5 * 60;
-// const STROKE_STYLE_HOME = "rgb(255, 198, 39)";
-// const STROKE_STYLE_AWAY = "rgb(12, 35, 64)";
 
 const STROKE_STYLE_HOME = "rgb(29, 66, 138)";
 const STROKE_STYLE_AWAY = "rgb(200, 16, 46)";
@@ -147,13 +145,15 @@ function makeGrid(chart, ytick, lastPeriod) {
  * BoxScore
  */
 
-function makeBoxscore(team, color, tableColor) {
-  const headerColor = "bg-" + color;
-  const borderColor = "border-" + color;
-
-  const callbacks = {
-    mouseEnter: null,
-    mouseLeave: null,
+function makeBoxscore(team, config, teamType) {
+  const self = {
+    teamType: teamType,
+    callbacks: {
+      mouseEnter: null,
+      mouseLeave: null,
+    },
+    setMouseEnter: (fn) => { self.callbacks.mouseEnter = fn; },
+    setMouseLeave: (fn) => { self.callbacks.mouseLeave = fn; },
   };
 
   const caption = document.createElement("caption");
@@ -163,7 +163,7 @@ function makeBoxscore(team, color, tableColor) {
   const header = ["#", "PLAYER", "POS", "MIN", "FGM", "FGA", "FG%", "PTS", "REB", "AST", "TO"];
 
   const headTr = document.createElement("tr");
-  headTr.className = headerColor + " text-white";
+  headTr.className = config.headerColor + " text-white";
   headTr.append(...header.map(text => makeTh(text, "text-center")));
 
   const thead = document.createElement("thead");
@@ -199,78 +199,52 @@ function makeBoxscore(team, color, tableColor) {
     );
 
     tr.addEventListener(
-      "mouseenter", () => { call_if(callbacks.mouseEnter, player); });
+      "mouseenter", () => { call_if(self.callbacks.mouseEnter, player, self.teamType); });
     tr.addEventListener(
-      "mouseleave", () => { call_if(callbacks.mouseLeave, player); });
+      "mouseleave", () => { call_if(self.callbacks.mouseLeave, player, self.teamType); });
 
     return tr;
   }));
 
   const table = document.createElement("table")
-  table.className = `table-auto border ${borderColor} ${tableColor}`
+  table.className = `table-auto border ${config.borderColor} ${config.tableColor}`
   table.append(caption, thead, tbody)
 
   const root = document.createElement("div");
   root.className = "absolute p-2";
   root.append(table);
 
-  const object = {
-    root: root,
-    callbacks: callbacks,
-    setMouseEnter: (fn) => { callbacks.mouseEnter = fn; },
-    setMouseLeave: (fn) => { callbacks.mouseLeave = fn; },
-  };
-
-
-  return object;
+  self.root = root;
+  return self;
 }
 
-function addBoxscore(obj, circles, chart, redraw, pos) {
-  let selectedPlayer = null;
-
-  const mouseEnter = (player) => {
-    // console.log("mouseEnter")
-    selectedPlayer = { "player": player, "color": null };
-
-    circles.forEach(obj => {
-      if (obj.props["personId"] == player["personId"]) {
-        obj.r = SCORE_RADIUS + 2;
-        selectedPlayer.color = obj.primaryStyle;
-        // obj.primaryStyle = "rgb(255, 195, 0)";
-        obj.primaryStyle = "#93c5fd";
-      }
-    });
-    redraw();
+function addBoxscore(widgets, boxscore, pos) {
+  const mouseEnter = (player, team) => {
+    widgets.chart.selectPlayer(player, team);
+    widgets.actionDialog.setVisible(false);
   };
 
-  const mouseLeave = (player) => {
-    // console.log("mouseLeave")
-    circles.forEach(obj => {
-      if (obj.props["personId"] == selectedPlayer.player["personId"]) {
-        obj.r = SCORE_RADIUS;
-        obj.primaryStyle = selectedPlayer.color;
-      }
-    });
-    selectedPlayer = null;
-    redraw();
+  const mouseLeave = (player, team) => {
+    widgets.chart.deselectPlayer(player, team);
   };
 
-  obj.setMouseEnter(mouseEnter)
-  obj.setMouseLeave(mouseLeave)
+  boxscore.setMouseEnter(mouseEnter)
+  boxscore.setMouseLeave(mouseLeave)
 
-  const elem = obj.root;
+  const elem = boxscore.root;
   const ob = new ResizeObserver((e) => {
+    const helper = widgets.chart.helper
     if (pos == "top-left") {
-      elem.style.top = `${chart.y0}px`;
-      elem.style.left = `${chart.x0}px`;
+      elem.style.top = `${helper.y0}px`;
+      elem.style.left = `${helper.x0}px`;
     } else {
-      elem.style.top = `${chart.y0 + chart.height - elem.clientHeight}px`;
-      elem.style.left = `${chart.x0 + chart.width - elem.clientWidth}px`;
+      elem.style.top = `${helper.y0 + helper.height - elem.clientHeight}px`;
+      elem.style.left = `${helper.x0 + helper.width - elem.clientWidth}px`;
     }
   });
   ob.observe(elem);
 
-  return obj;
+  return boxscore;
 }
 
 /*
@@ -457,7 +431,7 @@ function makeActionList(playbyplay, homeTeam, awayTeam, options) {
  * Chart
  */
 
-function makeScoreSeries(playbyplay, teamTricode, style) {
+function makeScoreSeries(playbyplay, teamTricode, config) {
   const actions = playbyplay["game"]["actions"]
   if (actions.length == 0)
     return;
@@ -483,11 +457,11 @@ function makeScoreSeries(playbyplay, teamTricode, style) {
     const [x0, y0] = last_score;
     const [x1, y1] = [elapsed, score];
     series.lines.push(
-      new Line(x0, y0, x1, y0, 2, style),
-      new Line(x1, y0, x1, y1, 2, style),
+      new Line(x0, y0, x1, y0, 2, config.lineStyle),
+      new Line(x1, y0, x1, y1, 2, config.lineStyle),
     );
     series.circles.push(
-      new Circle(elapsed, score, SCORE_RADIUS, style, fill, action),
+      new Circle(elapsed, score, SCORE_RADIUS, config.primaryStyle, fill, action),
     )
 
     last_score = [elapsed, score];
@@ -562,9 +536,9 @@ function makeChart(playbyplay, boxscore, config) {
   const tricodeAway = boxscore["game"]["awayTeam"]["teamTricode"]
   const tricodeHome = boxscore["game"]["homeTeam"]["teamTricode"]
   const seriesAway =
-    makeScoreSeries(playbyplay, tricodeAway, config.stroke_style_away);
+    makeScoreSeries(playbyplay, tricodeAway, config.style["away"]);
   const seriesHome =
-    makeScoreSeries(playbyplay, tricodeHome, config.stroke_style_home);
+    makeScoreSeries(playbyplay, tricodeHome, config.style["home"]);
 
   const guide = makeGuide(maxY, config.guide);
 
@@ -652,32 +626,70 @@ function makeChart(playbyplay, boxscore, config) {
   const ctx = canvas.getContext("2d");
   ctx.font = config.font;
 
-  const object = {
+  const self = {
     root: canvas,
     helper: chart,
     redraw: () => { chart.draw(ctx); },
-    seriesAway: seriesAway,
-    seriesHome: seriesHome,
+    series: {
+      away: seriesAway,
+      home: seriesHome,
+    },
+    // seriesAway: seriesAway,
+    // seriesHome: seriesHome,
     onMouseMoveCallback: null,
+    selectedPlayer: null,
+    selectPlayer: (player, team) => {
+      self.selectedPlayer = { "player": player, "color": null };
+      const series = self.series[team];
+
+      series.lines.forEach(obj => {
+        obj.strokeStyle = STROKE_STYLE_GRID;
+      });
+      series.circles.forEach(obj => {
+        if (obj.props["personId"] == player["personId"]) {
+          obj.r = SCORE_RADIUS + 2;
+        } else {
+          self.selectedPlayer.color = obj.primaryStyle;
+          obj.primaryStyle = STROKE_STYLE_GRID;
+        }
+      });
+      self.redraw();
+    },
+    deselectPlayer: (player, team) => {
+      const series = self.series[team];
+      series.lines.forEach(obj => {
+        obj.strokeStyle = config.style[team].lineStyle;
+      });
+
+      series.circles.forEach(obj => {
+        if (obj.props["personId"] == self.selectedPlayer.player["personId"]) {
+          obj.r = SCORE_RADIUS;
+        } else {
+          obj.primaryStyle = self.selectedPlayer.color;
+        }
+      });
+      self.selectedPlayer = null;
+      self.redraw();
+    },
   };
 
   canvas.addEventListener("mouseleave", (e) => {
     guide.setVisible(false);
-    object.redraw();
+    self.redraw();
   });
 
   canvas.addEventListener("mousemove", (e) => {
     const [cx, cy] = [e.offsetX, e.offsetY];
     if (chart.isin(cx, cy)) {
       guide.setVisible(true);
-      onMouseMove(e, object.onMouseMoveCallback)
+      onMouseMove(e, self.onMouseMoveCallback)
     } else {
       guide.setVisible(false);
     }
-    object.redraw();
+    self.redraw();
   });
 
-  return object;
+  return self;
 }
 
 export function init(elementId, playbyplay, boxscore) {
@@ -696,14 +708,43 @@ export function init(elementId, playbyplay, boxscore) {
       homeColor: "bg-blue-200",
       awayColor: "bg-rose-200",
     },
+    boxscore: {
+      away: {
+        tableColor: "bg-rose-50",
+        headerColor: "bg-rose-800",
+        borderColor: "border-rose-800",
+      },
+      home: {
+        tableColor: "bg-blue-50",
+        headerColor: "bg-blue-800",
+        borderColor: "border-blue-800",
+      },
+    },
     chart: {
       width: 1200,
       height: 900,
       ytick: 20,
-      stroke_style_away: STROKE_STYLE_AWAY,
-      stroke_style_home: STROKE_STYLE_HOME,
       font: `14px ${FONT_FAMILY},arial,sans`,
       shot_radius: SCORE_RADIUS,
+      style: {
+        away: {
+          lineStyle: STROKE_STYLE_AWAY,
+          // primaryStyle: "rgb(254, 205, 211)",
+          // primaryStyle: "#facc15", // yellow-400,
+          primaryStyle: STROKE_STYLE_AWAY,
+          // primaryStyle: "#65a30d", // "lime-500"
+          strokeStyle: STROKE_STYLE_AWAY,
+        },
+        home: {
+          lineStyle: STROKE_STYLE_HOME,
+          primaryStyle: STROKE_STYLE_HOME,
+          // primaryStyle: STROKE_STYLE_GRID,
+          // primaryStyle: "#93c5fd",
+          // primaryStyle: "#facc15",
+          // primaryStyle: "#65a30d", // "lime-500"
+          strokeStyle: STROKE_STYLE_HOME,
+        },
+      },
       guide: {
         lineWidth: 3,
         lineStyle: STROKE_STYLE_GRID,
@@ -719,12 +760,13 @@ export function init(elementId, playbyplay, boxscore) {
   const actionList = makeActionList(playbyplay, homeTeam, awayTeam, options.actionList);
 
   const chart = makeChart(playbyplay, boxscore, options.chart);
-  const boxscoreHome = makeBoxscore(homeTeam, "blue-800", "bg-blue-50");
-  const boxscoreAway = makeBoxscore(awayTeam, "rose-800", "bg-rose-50");
+  const boxscoreAway = makeBoxscore(awayTeam, options.boxscore.away, "away");
+  const boxscoreHome = makeBoxscore(homeTeam, options.boxscore.home, "home");
 
   const widgets = {
     actionDialog: actionDialog,
     actionList: actionList,
+    chart: chart,
   };
 
   const onMouseMoveCallback = (chartHelper, elapsed, action, score) => {
@@ -750,8 +792,8 @@ export function init(elementId, playbyplay, boxscore) {
     },
   });
 
-  addBoxscore(boxscoreHome, chart.seriesHome.circles, chart.helper, chart.redraw, "top-left");
-  addBoxscore(boxscoreAway, chart.seriesAway.circles, chart.helper, chart.redraw, "bottom-right");
+  addBoxscore(widgets, boxscoreHome, "top-left");
+  addBoxscore(widgets, boxscoreAway, "bottom-right");
 
   const root = document.getElementById(elementId);
   // root.className = "flex relative border border-red-500";
