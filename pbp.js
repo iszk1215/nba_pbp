@@ -639,15 +639,14 @@ function makeChart(playbyplay, boxscore, config) {
     selectPlayer: (player, team) => {
       self.selectedPlayer = player;
       const series = self.series[team];
-
       series.lines.forEach(obj => {
-        obj.strokeStyle = STROKE_STYLE_GRID;
+        obj.strokeStyle = config.style[team].grayStyle;
       });
       series.circles.forEach(obj => {
         if (obj.props["personId"] == player["personId"]) {
-          obj.r = SCORE_RADIUS + 2;
+          obj.r = config.shot_radius + 2;
         } else {
-          obj.primaryStyle = STROKE_STYLE_GRID;
+          obj.primaryStyle = config.style[team].grayStyle;
         }
       });
       self.redraw();
@@ -657,10 +656,9 @@ function makeChart(playbyplay, boxscore, config) {
       series.lines.forEach(obj => {
         obj.strokeStyle = config.style[team].lineStyle;
       });
-
       series.circles.forEach(obj => {
         if (obj.props["personId"] == player["personId"]) {
-          obj.r = SCORE_RADIUS;
+          obj.r = config.shot_radius;
         } else {
           obj.primaryStyle = config.style[team].primaryStyle;
         }
@@ -726,10 +724,12 @@ export function init(elementId, playbyplay, boxscore) {
       style: {
         away: {
           lineStyle: STROKE_STYLE_AWAY,
+          grayStyle: STROKE_STYLE_GRID,
           primaryStyle: STROKE_STYLE_AWAY,
         },
         home: {
           lineStyle: STROKE_STYLE_HOME,
+          grayStyle: STROKE_STYLE_GRID,
           primaryStyle: STROKE_STYLE_HOME,
         },
       },
