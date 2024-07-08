@@ -11,7 +11,7 @@ export class Line {
     this.p1 = new Point(lx1, ly1);
     this.lineWidth = lineWidth;
     this.strokeStyle = strokeStyle;
-    this.zindex = 0;
+    this.zindex = 1;
     this.visible = true;
   }
 
@@ -42,6 +42,26 @@ export class Line {
   }
 };
 
+export class Rect {
+  constructor(lx, ly, width, height, style) {
+    this.p0 = new Point(lx, ly);
+    this.p1 = new Point(lx + width, ly + height);
+    this.style = style;
+    this.visible = true;
+    this.zindex = 0;
+  }
+
+  draw(ctx, chart) {
+    if (!this.visible)
+      return;
+
+    const [x0, y0] = chart.toCanvasXY(this.p0.x, this.p0.y);
+    const [x1, y1] = chart.toCanvasXY(this.p1.x, this.p1.y);
+    ctx.fillStyle = this.style;
+    ctx.fillRect(x0, y0, (x1 - x0), (y1 - y0));
+  }
+};
+
 export class Circle {
   constructor(lx, ly, r, primaryStyle, fill, props) {
     this.lx = lx;
@@ -52,7 +72,7 @@ export class Circle {
     this.isMouseOn = false;
     this.props = props;
     this.lineWidth = 2;
-    this.zindex = 2;
+    this.zindex = 3;
   }
 
   isin(lx, ly) {
@@ -82,6 +102,7 @@ export class Text {
     this.config = config;
     this.config.visible = config.visible || true;
     this.config.style = config.style || "rgb(100, 100, 100)"; // TODO
+    this.zindex = 1;
   }
 
   moveTo(x, y) {
@@ -128,6 +149,10 @@ export class Chart {
     this.objects.push(...obj);
   }
 
+  setObjects(objects) {
+    this.objects = objects;
+  }
+
   isin(px, py) {
     return px >= this.x0 && px < this.x0 + this.width
       && py >= this.y0 && py < this.y0 + this.height;
@@ -162,13 +187,17 @@ export class Chart {
 
 
   draw(ctx) {
+    // console.log("== draw ==");
     ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
 
     ctx.fillStyle = "#ffffff";
     ctx.fillRect(this.x0, this.y0, this.width, this.height);
 
     this.objects.sort((a, b) => a.zindex - b.zindex);
-    this.objects.forEach(obj => obj.draw(ctx, this));
+    this.objects.forEach(obj => {
+      // console.log(obj.constructor.name, obj.zindex);
+      obj.draw(ctx, this)
+    });
   }
 }
 

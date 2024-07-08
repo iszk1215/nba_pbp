@@ -23,6 +23,7 @@
     import { init } from "./pbp.js"
     import _playbypay from "./data/{{ gameId }}_playbyplay.json" with {type: "json"}
     import _boxscore from "./data/{{ gameId }}_boxscore.json" with {type: "json"}
-    init("{{ gameId }}", _playbypay, _boxscore);
+    import _players_on_court from "./data/{{ gameId }}_poc.json" with {type: "json"}
+    init("{{ gameId }}", _playbypay, _boxscore, _players_on_court);
   </script>
 </html>

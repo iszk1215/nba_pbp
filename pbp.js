@@ -1,4 +1,4 @@
-import { Line, Circle, Text, Chart } from "./chart.js"
+import { Line, Rect, Circle, Text, Chart } from "./chart.js"
 
 const POINTS_BY_ACTION = {
   "freethrow": 1,
@@ -521,7 +521,10 @@ function getMaxScore(playbyplay) {
   return Math.max(last["scoreAway"], last["scoreHome"])
 }
 
-function makeChart(playbyplay, boxscore, config) {
+function makeChart(dataset, config) {
+  const playbyplay = dataset.playbyplay
+  const boxscore = dataset.boxscore
+
   const chart_x0 = 50;
   const chart_y0 = 20;
   const chart_width = config.width - 60;
@@ -532,6 +535,7 @@ function makeChart(playbyplay, boxscore, config) {
   const maxScore = getMaxScore(playbyplay)
   const maxX = 4 * SECONDS_IN_REGULAR_PERIOD + (lastPeriod - 4) * SECONDS_IN_OVERTIME_PREIOD;
   const maxY = Math.ceil(maxScore / config.ytick) * config.ytick;
+  console.log("maxX", maxX);
 
   const tricodeAway = boxscore["game"]["awayTeam"]["teamTricode"]
   const tricodeHome = boxscore["game"]["homeTeam"]["teamTricode"]
@@ -551,6 +555,16 @@ function makeChart(playbyplay, boxscore, config) {
   );
   chart.addObject(...makeGrid(chart, config.ytick, lastPeriod));
   chart.addObject(...guide.getObjects());
+
+
+  /*
+  const personId = 201572;
+  dataset.players_on_court[personId].forEach(poc => {
+    console.log(poc);
+    chart.addObject(new Rect(poc.begin, 0, poc.end - poc.begin, maxY, 
+      config.style.home.player_on_court));
+  });
+  */
 
   const circles = [...seriesAway.circles, ...seriesHome.circles];
 
@@ -591,6 +605,29 @@ function makeChart(playbyplay, boxscore, config) {
       selectedCircle.r = config.shot_radius + 2;
     }
   }
+
+  const getTeamTricodeOfPlayer = (player) => {
+    const away = boxscore["game"]["awayTeam"];
+    for (const p of away["players"]) {
+      if (p["personId"] == player["personId"])
+        return "away";
+    }
+    return "home";
+  }
+
+  const addPoC = (player) => {
+    dataset.players_on_court[player["personId"]].forEach(poc => {
+      const home_or_away = getTeamTricodeOfPlayer(player);
+      const rect = new Rect(poc.begin, 0, poc.end - poc.begin, maxY,
+        config.style[home_or_away].player_on_court);
+      rect.tag = "poc";
+      chart.addObject(rect);
+    });
+  };
+
+  const removePoC = () => {
+    chart.setObjects(chart.objects.filter((obj) => obj.tag != "poc"))
+  };
 
   const onMouseMove = (e, callback) => {
     const [cx, cy] = [e.offsetX, e.offsetY];
@@ -649,6 +686,8 @@ function makeChart(playbyplay, boxscore, config) {
           obj.primaryStyle = config.style[team].grayStyle;
         }
       });
+
+      addPoC(player);
       self.redraw();
     },
     deselectPlayer: (player, team) => {
@@ -664,6 +703,7 @@ function makeChart(playbyplay, boxscore, config) {
         }
       });
       self.selectedPlayer = null;
+      removePoC();
       self.redraw();
     },
   };
@@ -687,10 +727,11 @@ function makeChart(playbyplay, boxscore, config) {
   return self;
 }
 
-export function init(elementId, playbyplay, boxscore) {
+export function init(elementId, playbyplay, boxscore, players_on_court) {
   console.log(playbyplay["game"]["gameId"])
   console.log(playbyplay)
   console.log(boxscore)
+  console.log(players_on_court)
 
   if (playbyplay["game"]["gameId"] !== boxscore["game"]["gameId"]) {
     console.log("gameId mismatch");
@@ -726,11 +767,13 @@ export function init(elementId, playbyplay, boxscore) {
           lineStyle: STROKE_STYLE_AWAY,
           grayStyle: STROKE_STYLE_GRID,
           primaryStyle: STROKE_STYLE_AWAY,
+          player_on_court: "#ffe4e6", // rose-100
         },
         home: {
           lineStyle: STROKE_STYLE_HOME,
           grayStyle: STROKE_STYLE_GRID,
           primaryStyle: STROKE_STYLE_HOME,
+          player_on_court: "#dbeafe", // blue-100
         },
       },
       guide: {
@@ -741,13 +784,19 @@ export function init(elementId, playbyplay, boxscore) {
     },
   };
 
+  const dataset = {
+    playbyplay: playbyplay,
+    boxscore: boxscore,
+    players_on_court: players_on_court,
+  }
+
   const homeTeam = boxscore["game"]["homeTeam"];
   const awayTeam = boxscore["game"]["awayTeam"];
 
   const actionDialog = makeActionDialog();
   const actionList = makeActionList(playbyplay, homeTeam, awayTeam, options.actionList);
 
-  const chart = makeChart(playbyplay, boxscore, options.chart);
+  const chart = makeChart(dataset, options.chart);
   const boxscoreAway = makeBoxscore(awayTeam, options.boxscore.away, "away");
   const boxscoreHome = makeBoxscore(homeTeam, options.boxscore.home, "home");
 
