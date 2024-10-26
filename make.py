@@ -6,6 +6,7 @@ import dateutil.parser
 
 env = Environment(loader=FileSystemLoader("."))
 
+ACTION_TYPE_SUBSTITUTION = "substitution"
 
 class Team:
     def __init__(self, js):
@@ -63,7 +64,7 @@ def make_players_on_court(pbp, boxscore):
         poc[player["personId"]] += [{"begin": 0, "end": -1}]
 
     for action in pbp["game"]["actions"]:
-        if action["actionType"] == "substitution":
+        if action["actionType"] == ACTION_TYPE_SUBSTITUTION:
             # print(f"{action['subType']:3} {action['playerName']} {get_elapsed(action)}")
             personId = action["personId"]
             elapsed = get_elapsed(action)

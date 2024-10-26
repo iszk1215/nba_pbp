@@ -160,7 +160,7 @@ function makeBoxscore(team, config, teamType) {
   caption.className = "font-bold";
   caption.append(document.createTextNode(team["teamName"]));
 
-  const header = ["#", "PLAYER", "POS", "MIN", "FGM", "FGA", "FG%", "PTS", "REB", "AST", "TO"];
+  const header = ["", "#", "PLAYER", "POS", "MIN", "FGM", "FGA", "FG%", "PTS", "REB", "AST", "TO"];
 
   const headTr = document.createElement("tr");
   headTr.className = config.headerColor + " text-white";
@@ -180,9 +180,17 @@ function makeBoxscore(team, config, teamType) {
 
     const tdClass = "text-right px-1 font-mono";
 
+    const checkbox = document.createElement("input");
+    checkbox.setAttribute("type", "checkbox");
+    checkbox.className = config.accentColor;
+    const checkboxTd = document.createElement("td");
+    checkboxTd.append(checkbox);
+    checkboxTd.className = "px-1";
+
     const tr = document.createElement("tr");
     tr.className = "hover:font-bold"
     tr.append(
+      checkboxTd,
       makeTd(player["jerseyNum"], tdClass),
       makeTd(player["nameI"], "px-1"),
       makeTd(player["starter"] == "1" ? player["position"] : "", ""),
@@ -556,16 +564,6 @@ function makeChart(dataset, config) {
   chart.addObject(...makeGrid(chart, config.ytick, lastPeriod));
   chart.addObject(...guide.getObjects());
 
-
-  /*
-  const personId = 201572;
-  dataset.players_on_court[personId].forEach(poc => {
-    console.log(poc);
-    chart.addObject(new Rect(poc.begin, 0, poc.end - poc.begin, maxY, 
-      config.style.home.player_on_court));
-  });
-  */
-
   const circles = [...seriesAway.circles, ...seriesHome.circles];
 
   const findNearest = (e) => {
@@ -615,6 +613,31 @@ function makeChart(dataset, config) {
     return "home";
   }
 
+  const getAwayOrHome = (action) => {
+    return action["teamTricode"] == boxscore["game"]["awayTeam"]["teamTricode"]
+      ? "away" : "home";
+  }
+
+  const countScore = (begin, end) => {
+    const actions = playbyplay["game"]["actions"];
+    const actionsWithShotMade = actions.filter(
+      a => a["shotResult"] && a["shotResult"] == "Made")
+
+    const scoreBoard = { "away": 0, "home": 0 };
+
+    actionsWithShotMade.forEach(action => {
+      const elapsed = getElapsed(action);
+      if (elapsed >= begin && elapsed <= end) {
+        const score = POINTS_BY_ACTION[action["actionType"]];
+        const awayOrHome = getAwayOrHome(action);
+        scoreBoard[awayOrHome] += score;
+      }
+    });
+
+    return scoreBoard;
+  };
+
+
   const addPoC = (player) => {
     dataset.players_on_court[player["personId"]].forEach(poc => {
       const home_or_away = getTeamTricodeOfPlayer(player);
@@ -622,7 +645,10 @@ function makeChart(dataset, config) {
         config.style[home_or_away].player_on_court);
       rect.tag = "poc";
       chart.addObject(rect);
+      const scoreBoard = countScore(poc.begin, poc.end);
+      console.log(scoreBoard);
     });
+
   };
 
   const removePoC = () => {
@@ -749,11 +775,13 @@ export function init(elementId, playbyplay, boxscore, players_on_court) {
         tableColor: "bg-rose-50",
         headerColor: "bg-rose-800",
         borderColor: "border-rose-800",
+        accentColor: "accent-rose-800",
       },
       home: {
         tableColor: "bg-blue-50",
         headerColor: "bg-blue-800",
         borderColor: "border-blue-800",
+        accentColor: "accent-blue-800",
       },
     },
     chart: {
