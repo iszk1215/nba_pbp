@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <script src="https://cdn.tailwindcss.com"></script>
+  </head>
+  <body class="m-4 font-mono">
+    <ul>
+      {% for day in games.keys() | sort | reverse %}
+      <h2>{{ day }}</h2>
+      {% for game in games[day] %}
+      <li>
+        <a class="text-blue-500 hover:underline"
+           href="games/{{ game.game_id}}/">
+          {{ game.home_team.tricode }} {{ "%3d"|format(game.home_team.score)}}
+          -
+          {{ game.away_team.score}} {{ game.away_team.tricode }}
+        </a>
+      </li>
+      {% endfor %}
+      {% endfor %}
+    </ul>
+  </body>
+</html>
