@@ -1,5 +1,6 @@
-import json
 import argparse
+import json
+import os
 
 from jinja2 import Environment, FileSystemLoader
 import dateutil.parser
@@ -85,24 +86,24 @@ def make_players_on_court(pbp, boxscore):
         if len(oc) > 0 and oc[-1]["end"] == -1:
             poc[personId][-1]["end"] = elpased_last
 
-    print_poc(poc, all_players)
+    # print_poc(poc, all_players)
     return poc
 
 
-def make_play_by_play(args, pbp, boxscore):
+def make_play_by_play(output, pbp, boxscore):
     awayTeam = Team(boxscore["game"]["awayTeam"])
     homeTeam = Team(boxscore["game"]["homeTeam"])
 
-    print(boxscore["game"]["gameTimeLocal"])
+    # print(boxscore["game"]["gameTimeLocal"])
 
     dt = dateutil.parser.parse(boxscore["game"]["gameTimeLocal"])
-    print(type(dt))
-    print(dt.strftime("%a %b %d"))
+    # print(type(dt))
+    # print(dt.strftime("%a %b %d"))
 
     actions = pbp["game"]["actions"]
 
-    if args.output is not None:
-        with open(args.output, "w") as f:
+    if output is not None:
+        with open(output, "w") as f:
             templ = env.get_template("template.html")
             f.write(
                 templ.render(
@@ -113,6 +114,10 @@ def make_play_by_play(args, pbp, boxscore):
                     actions=actions,
                 )
             )
+
+
+def _make_play_by_play(args, pbp, boxscore):
+    make_play_by_play(pbp, boxscore, args.output)
 
 
 def main():
@@ -128,11 +133,11 @@ def main():
     with open(args.boxscore, "r") as f:
         boxscore = json.load(f)
 
-    make_play_by_play(args, play_by_play, boxscore)
+    _make_play_by_play(args, play_by_play, boxscore)
 
     gameId = play_by_play["game"]["gameId"]
     poc = make_players_on_court(play_by_play, boxscore)
-    with open(f"data/{gameId}_poc.json", "w") as f:
+    with open(os.path.join("data", gameId, "poc.json"), "w") as f:
         f.write(json.dumps(poc))
 
 

@@ -215,11 +215,11 @@ function makeBoxscore(team, config, teamType) {
   }));
 
   const table = document.createElement("table")
-  table.className = `table-auto border ${config.borderColor} ${config.tableColor}`
+  table.className = `table-auto w-full border ${config.borderColor} ${config.tableColor}`
   table.append(caption, thead, tbody)
 
   const root = document.createElement("div");
-  root.className = "absolute p-2";
+  // root.className = "absolute p-2";
   root.append(table);
 
   self.root = root;
@@ -239,6 +239,7 @@ function addBoxscore(widgets, boxscore, pos) {
   boxscore.setMouseEnter(mouseEnter)
   boxscore.setMouseLeave(mouseLeave)
 
+  /*
   const elem = boxscore.root;
   const ob = new ResizeObserver((e) => {
     const helper = widgets.chart.helper
@@ -251,6 +252,7 @@ function addBoxscore(widgets, boxscore, pos) {
     }
   });
   ob.observe(elem);
+  */
 
   return boxscore;
 }
@@ -860,12 +862,18 @@ export function init(elementId, playbyplay, boxscore, players_on_court) {
   addBoxscore(widgets, boxscoreHome, "top-left");
   addBoxscore(widgets, boxscoreAway, "bottom-right");
 
+  const boxScoreContainer = document.createElement("div");
+  boxScoreContainer.append(boxscoreAway.root);
+  boxScoreContainer.append(boxscoreHome.root);
+  boxScoreContainer.className = "w-full";
+
   const root = document.getElementById(elementId);
   // root.className = "flex relative border border-red-500";
   root.className = "flex relative";
   root.append(chart.root);
-  root.append(boxscoreAway.root);
-  root.append(boxscoreHome.root);
-  root.appendChild(actionList.root);
+  root.append(boxScoreContainer);
+  //root.append(boxscoreAway.root);
+  //root.append(boxscoreHome.root);
+  // root.appendChild(actionList.root);
   root.appendChild(actionDialog.root);
 }
