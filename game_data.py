@@ -53,7 +53,7 @@ class NBAAPIClient:
 
         try:
             with open(cache_path) as f:
-                data = json.load(cache_path)
+                data = json.load(f)
             print(f"load from cache: {cache_path}")
         except Exception:
             json_str = playbyplay.PlayByPlay(game_id).get_json()
@@ -179,6 +179,7 @@ def main():
     parser.add_argument("--game", action="store_true")
     parser.add_argument("--update-index", action="store_true")
     parser.add_argument("--download-games", action="store_true")
+    parser.add_argument("--generate-game", default=None)
     args = parser.parse_args()
 
     if args.update_index:
@@ -199,6 +200,12 @@ def main():
                 generate_game(client, game_id, path)
             else:
                 print(f"{path} already exists")
+
+    if args.generate_game:
+        client = NBAAPIClient("cache")
+        game_id = args.generate_game
+        path = os.path.join(args.output_directory, "games", game_id)
+        generate_game(client, game_id, path)
 
 
 if __name__ == "__main__":

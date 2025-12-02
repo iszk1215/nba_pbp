@@ -9,6 +9,7 @@ env = Environment(loader=FileSystemLoader("."))
 
 ACTION_TYPE_SUBSTITUTION = "substitution"
 
+
 class Team:
     def __init__(self, js):
         self.tricode = js["teamTricode"]
@@ -26,7 +27,7 @@ def get_elapsed(action):
     if elapsed > 4 * 12 * 60 + 5 * 60:
         print(f"{clock} {minutes} {seconds} => {elapsed}")
 
-    if period >=  5:
+    if period >= 5:
         return 12 * 60 * 4 + 5 * 60 * (period - 4) - (minutes * 60 + seconds)
 
     return 12 * 60 * period - (minutes * 60 + seconds)
@@ -90,7 +91,13 @@ def make_players_on_court(pbp, boxscore):
     return poc
 
 
+class Config:
+    def __init__(self):
+        self.base_url = "/nba_pbp/"
+
+
 def make_play_by_play(output, pbp, boxscore):
+    config = Config()
     awayTeam = Team(boxscore["game"]["awayTeam"])
     homeTeam = Team(boxscore["game"]["homeTeam"])
 
@@ -107,6 +114,7 @@ def make_play_by_play(output, pbp, boxscore):
             templ = env.get_template("template.html")
             f.write(
                 templ.render(
+                    config=config,
                     gameId=pbp["game"]["gameId"],
                     awayTeam=awayTeam,
                     homeTeam=homeTeam,
