@@ -188,7 +188,7 @@ def main():
 
     if args.download_games:
         if args.date is None:
-            date = datetime.datetime.today()
+            date = datetime.today()
         else:
             date = dateutil.parser.parse(args.date)
 

@@ -50,7 +50,8 @@ def download_boxscore(game_id):
 
 def download_scoreboard():
     # jdata = scoreboard.ScoreBoard()
-    data = scoreboardv2.ScoreboardV2(game_date="2024-05-17")
+    # data = scoreboardv2.ScoreboardV2(game_date="2024-05-17")
+    data = scoreboardv2.ScoreboardV2(game_date="2025-12-01")
     print(json.dumps(json.loads(data.get_json()), indent=2))
 
     # with open(f"{game_id}_scoreboard.json", "w") as f:
@@ -64,8 +65,8 @@ def download_stats_boxscore(game_id):
 
 print(str(datetime.now().date()))
 
-download_playbyplay(game_id)
-download_boxscore(game_id)
-# download_scoreboard()
+# download_playbyplay(game_id)
+# download_boxscore(game_id)
+download_scoreboard()
 
 # download_stats_boxscore(game_id)
