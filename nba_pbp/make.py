@@ -93,7 +93,8 @@ def make_players_on_court(pbp, boxscore):
 
 class Config:
     def __init__(self):
-        self.base_url = "/nba_pbp/"
+        # self.base_url = "/nba_pbp/"
+        self.base_url = "/"
 
 
 def make_play_by_play(output, pbp, boxscore):

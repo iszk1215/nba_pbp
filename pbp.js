@@ -688,6 +688,7 @@ function makeChart(dataset, config) {
   // canvas.className = "border border-green-400"
   canvas.width = config.width;
   canvas.height = config.height;
+  canvas.className = `w-[${config.width}px] h-[${config.height}px]`;
   const ctx = canvas.getContext("2d");
   ctx.font = config.font;
 
@@ -768,7 +769,7 @@ export function init(elementId, playbyplay, boxscore, players_on_court) {
 
   const options = {
     actionList: {
-      height: 900,
+      height: 600,
       homeColor: "bg-blue-200",
       awayColor: "bg-rose-200",
     },
@@ -788,7 +789,7 @@ export function init(elementId, playbyplay, boxscore, players_on_court) {
     },
     chart: {
       width: 1200,
-      height: 900,
+      height: 460,
       ytick: 20,
       font: `14px ${FONT_FAMILY},arial,sans`,
       shot_radius: SCORE_RADIUS,
@@ -864,16 +865,22 @@ export function init(elementId, playbyplay, boxscore, players_on_court) {
 
   const boxScoreContainer = document.createElement("div");
   boxScoreContainer.append(boxscoreAway.root);
+  boxscoreHome.root.classList.add("pr-1")
+  boxscoreAway.root.classList.add("w-[600px]")
+  boxscoreHome.root.classList.add("pl-1")
+  boxscoreHome.root.classList.add("w-[600px]")
   boxScoreContainer.append(boxscoreHome.root);
-  boxScoreContainer.className = "w-full";
+  boxScoreContainer.className = "w-full flex pb-2";
 
   const root = document.getElementById(elementId);
   // root.className = "flex relative border border-red-500";
-  root.className = "flex relative";
+// root.className = "flex relative";
+  //root.className = "flex";
+  root.className = "relative";
   root.append(chart.root);
   root.append(boxScoreContainer);
   //root.append(boxscoreAway.root);
   //root.append(boxscoreHome.root);
-  // root.appendChild(actionList.root);
+  //root.appendChild(actionList.root);
   root.appendChild(actionDialog.root);
 }
