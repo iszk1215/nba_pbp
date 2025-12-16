@@ -1,7 +1,3 @@
-import argparse
-import json
-import os
-
 from jinja2 import Environment, FileSystemLoader
 import dateutil.parser
 
@@ -124,31 +120,3 @@ def make_play_by_play(output, pbp, boxscore):
                 )
             )
 
-
-def _make_play_by_play(args, pbp, boxscore):
-    make_play_by_play(pbp, boxscore, args.output)
-
-
-def main():
-    parser = argparse.ArgumentParser()
-    parser.add_argument("-o", "--output")
-    parser.add_argument("-p", "--play-by-play")
-    parser.add_argument("-b", "--boxscore")
-    args = parser.parse_args()
-
-    with open(args.play_by_play, "r") as f:
-        play_by_play = json.load(f)
-
-    with open(args.boxscore, "r") as f:
-        boxscore = json.load(f)
-
-    _make_play_by_play(args, play_by_play, boxscore)
-
-    gameId = play_by_play["game"]["gameId"]
-    poc = make_players_on_court(play_by_play, boxscore)
-    with open(os.path.join("data", gameId, "poc.json"), "w") as f:
-        f.write(json.dumps(poc))
-
-
-if __name__ == "__main__":
-    main()

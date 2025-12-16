@@ -15,8 +15,7 @@ from nba_api.stats.endpoints import ScoreboardV2
 from jinja2 import Environment, FileSystemLoader
 
 
-# from game_id import get_game_id_of_day
-from make import make_play_by_play, make_players_on_court
+from nba_pbp.make import make_play_by_play, make_players_on_court
 
 
 class NBAAPIClient:
