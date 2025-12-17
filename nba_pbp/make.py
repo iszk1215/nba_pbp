@@ -93,30 +93,21 @@ class Config:
         self.base_url = "/"
 
 
-def make_play_by_play(output, pbp, boxscore):
+def make_play_by_play(output, boxscore):
     config = Config()
     awayTeam = Team(boxscore["game"]["awayTeam"])
     homeTeam = Team(boxscore["game"]["homeTeam"])
 
-    # print(boxscore["game"]["gameTimeLocal"])
-
     dt = dateutil.parser.parse(boxscore["game"]["gameTimeLocal"])
-    # print(type(dt))
-    # print(dt.strftime("%a %b %d"))
 
-    actions = pbp["game"]["actions"]
-
-    if output is not None:
-        with open(output, "w") as f:
-            templ = env.get_template("template.html")
-            f.write(
-                templ.render(
-                    config=config,
-                    gameId=pbp["game"]["gameId"],
-                    awayTeam=awayTeam,
-                    homeTeam=homeTeam,
-                    gameTime=dt.strftime("%a %b %d"),
-                    actions=actions,
-                )
+    with open(output, "w") as f:
+        templ = env.get_template("template.html")
+        f.write(
+            templ.render(
+                config=config,
+                gameId=boxscore["game"]["gameId"],
+                awayTeam=awayTeam,
+                homeTeam=homeTeam,
+                gameTime=dt.strftime("%a %b %d"),
             )
-
+        )
