@@ -1,15 +1,4 @@
-from jinja2 import Environment, FileSystemLoader
-import dateutil.parser
-
-env = Environment(loader=FileSystemLoader("."))
-
 ACTION_TYPE_SUBSTITUTION = "substitution"
-
-
-class Team:
-    def __init__(self, js):
-        self.tricode = js["teamTricode"]
-        self.score = js["score"]
 
 
 def get_elapsed(action):
@@ -85,29 +74,3 @@ def make_players_on_court(pbp, boxscore):
 
     # print_poc(poc, all_players)
     return poc
-
-
-class Config:
-    def __init__(self):
-        # self.base_url = "/nba_pbp/"
-        self.base_url = "/"
-
-
-def make_play_by_play(output, boxscore):
-    config = Config()
-    awayTeam = Team(boxscore["game"]["awayTeam"])
-    homeTeam = Team(boxscore["game"]["homeTeam"])
-
-    dt = dateutil.parser.parse(boxscore["game"]["gameTimeLocal"])
-
-    with open(output, "w") as f:
-        templ = env.get_template("template.html")
-        f.write(
-            templ.render(
-                config=config,
-                gameId=boxscore["game"]["gameId"],
-                awayTeam=awayTeam,
-                homeTeam=homeTeam,
-                gameTime=dt.strftime("%a %b %d"),
-            )
-        )

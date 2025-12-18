@@ -11,6 +11,9 @@ from nba_api.stats.endpoints import ScoreboardV2
 _logger = logging.getLogger(__name__)
 
 
+# parsers for ScoreboardV2
+
+
 def parse_result_sets(result_sets):
     return {
         result_set["name"]: {

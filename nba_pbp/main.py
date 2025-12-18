@@ -9,7 +9,7 @@ import dateutil.parser
 
 from jinja2 import Environment, FileSystemLoader
 
-from nba_pbp.make import make_play_by_play, make_players_on_court
+from nba_pbp.make import make_players_on_court
 from nba_pbp.client import NBAAPIClient, parse_result_sets, parse_row_set
 
 _logger = logging.getLogger(__name__)
@@ -20,6 +20,10 @@ class Team:
         self.tricode = tricode
         self.score = score
 
+    @staticmethod
+    def from_json(js):
+        return Team(js["teamTricode"], js["score"])
+
 
 class Game:
     def __init__(self, game_id, game_time_local, game_status, home_team, away_team):
@@ -28,6 +32,32 @@ class Game:
         self.game_status = game_status
         self.home_team = home_team
         self.away_team = away_team
+
+
+class Config:
+    def __init__(self):
+        self.base_url = "/"
+
+
+def generate_play_by_play(output, boxscore):
+    config = Config()
+    awayTeam = Team.from_json(boxscore["game"]["awayTeam"])
+    homeTeam = Team.from_json(boxscore["game"]["homeTeam"])
+
+    dt = dateutil.parser.parse(boxscore["game"]["gameTimeLocal"])
+
+    with open(output, "w") as f:
+        env = Environment(loader=FileSystemLoader("."))
+        templ = env.get_template("template.html")
+        f.write(
+            templ.render(
+                config=config,
+                gameId=boxscore["game"]["gameId"],
+                awayTeam=awayTeam,
+                homeTeam=homeTeam,
+                gameTime=dt.strftime("%a %b %d"),
+            )
+        )
 
 
 def get_games_of_day(client, date):
@@ -53,7 +83,7 @@ def generate_game(client, game_id, directory):
         f.write(json.dumps(poc))
 
     filename = os.path.join(directory, "index.html")
-    make_play_by_play(filename, boxscore)
+    generate_play_by_play(filename, boxscore)
 
 
 def generate_index(games, directory):
@@ -76,15 +106,11 @@ def generate_index(games, directory):
         f.write(templ.render(games=days))
 
 
-def parse_team(data):
-    return Team(data["teamTricode"], data["score"])
-
-
 def parse_boxscore(data):
     game = data["game"]
     game_time_local = dateutil.parser.parse(game["gameTimeLocal"])
-    home_team = parse_team(game["homeTeam"])
-    away_team = parse_team(game["awayTeam"])
+    home_team = Team.from_json(game["homeTeam"])
+    away_team = Team.from_json(game["awayTeam"])
     print(f"{game['gameId']} {home_team.tricode=} {away_team.tricode=}")
     return Game(
         game_id=game["gameId"],
@@ -97,16 +123,12 @@ def parse_boxscore(data):
 
 def scan_boxscores(directory):
     files = glob.glob(os.path.join(directory, "*", "boxscore.json"))
-    print(files)
+    # print(files)
 
     games = []
     for file in files:
         with open(file) as f:
             data = json.load(f)
-            # print(json.dumps(data, indent=2))
-            # print(data.keys())
-            # print(data["game"].keys())
-            # print(data["game"]["homeTeam"].keys())
             games += [parse_boxscore(data)]
 
     return games
