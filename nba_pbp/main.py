@@ -143,6 +143,7 @@ def main():
     parser.add_argument("--download-games", action="store_true")
     parser.add_argument("--generate-game", default=None)
     parser.add_argument("--cache-dir", default=".cache")
+    parser.add_argument("--force", "-f", action="store_true")
     args = parser.parse_args()
 
     logging.basicConfig(level=logging.INFO)
@@ -161,7 +162,7 @@ def main():
         game_ids = get_games_of_day(client, date.strftime("%Y-%m-%d"))
         for game_id in game_ids:
             path = os.path.join(args.output_directory, "games", game_id)
-            if not os.path.exists(path):
+            if not os.path.exists(path) or args.force:
                 generate_game(client, game_id, path)
             else:
                 _logger.info(f"{path} already exists")
